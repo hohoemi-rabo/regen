@@ -1,4 +1,5 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { DATA_VERSION } from "@/lib/site";
 
 /**
  * D1バインディングの疎通確認用。
@@ -12,5 +13,5 @@ export async function GET() {
   } catch {
     // next dev をOpenNext初期化なしで動かした場合など
   }
-  return Response.json({ service: "regen", dataVersion: "2026-08-29-prototype", binding });
+  return Response.json({ service: "regen", dataVersion: DATA_VERSION, binding });
 }

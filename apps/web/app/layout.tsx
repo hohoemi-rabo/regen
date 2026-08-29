@@ -1,5 +1,24 @@
 import type { Metadata } from "next";
+import { Inter, Noto_Sans_JP } from "next/font/google";
 import "./globals.css";
+import { SiteHeader } from "./_components/SiteHeader";
+import { SiteFooter } from "./_components/SiteFooter";
+
+// ウェイトは400/600の2段のみ(DESIGN §3.1)
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "600"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const notoSansJP = Noto_Sans_JP({
+  subsets: ["latin"],
+  weight: ["400", "600"],
+  variable: "--font-noto",
+  display: "swap",
+  preload: false, // 日本語サブセットは大きいためswap任せ
+});
 
 export const metadata: Metadata = {
   title: "Regen ― 下り坂は、燃料になる。",
@@ -9,8 +28,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ja">
-      <body className="bg-stone-50 text-stone-900 antialiased">{children}</body>
+    <html lang="ja" className={`${inter.variable} ${notoSansJP.variable}`}>
+      <body className="flex min-h-screen flex-col bg-page font-sans text-body text-ink-1 antialiased">
+        <SiteHeader />
+        {children}
+        <SiteFooter />
+      </body>
     </html>
   );
 }
