@@ -149,9 +149,12 @@ resample(25m) → fillNulls → smooth(175m) →
 ## 現状(2026-08-29)
 
 - 完了: 診断エンジンTS移植 + ゴールデンテスト(47件通過)、DBスキーマ、バッチv0、仮トップページ、
-  企画書v0.2 / 要件定義v1.0 / DESIGN.md v1.0
-- 次: **00 デザイントークン** → 01 共通UI → 02 F-1マップ(MapLibre、data/seed/map_data.json から)
-  → 03 F-5一覧 → 04 F-2診断書 → 05 F-3比較(以降は docs/tickets/README.md 参照)
+  企画書v0.2 / 要件定義v1.0 / DESIGN.md v1.0 / チケット00〜12(docs/tickets/)
+- GitHub: https://github.com/hohoemi-rabo/regen (main直コミット・直push)
+- **次: チケット00(デザイントークン)から実装開始。** 00 → 01 共通UI → 02 F-1マップ →
+  03 F-5一覧 → 04 F-2診断書 → 05 F-3比較(以降は docs/tickets/README.md 参照)
+- 各チケットの進捗はチケット内のステータス行とTodoチェックボックスが正(この節は概況のみ)
+- PC表示: 一覧(F-5)・比較(F-3)は最大幅1200px、診断書は900px(DESIGN §4.1)
 - 未確定事項は要件定義書§13(車両マスタの車種、充電計画の粒度など)
 
 ## データ
