@@ -9,7 +9,6 @@
     "types": []
   },
   "include": [
-    "src",
-    "test"
+    "src"
   ]
 }

@@ -5,3 +5,5 @@ export * from "./energy";
 export * from "./charging";
 export * from "./comparison";
 export * from "./diagnose";
+export * from "./vehicles";
+export * from "./simulate";

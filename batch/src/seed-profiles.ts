@@ -5,6 +5,12 @@
  *
  * seed の生標高をそのまま描くと、DEMがトンネル上の地表を拾った山が残る。
  * 表示に使うのは diagnose() が返す補正後プロファイル(要件§9.1と同じ処理順序)。
+ *
+ * 出力は2つ。
+ *   profiles.json   … F-2診断書の表示用(最大400点に間引く。stepMは路線ごとに変わる)
+ *   profiles25.json … F-3車両比較がブラウザで再計算するための25m解像度の補正後標高。
+ *                     間引いた配列で energyForProfile() を回すと冬電力量が最大1.55%ずれ、
+ *                     診断書と食い違うため、比較画面には必ずこちらを渡すこと。
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -14,6 +20,7 @@ const ROOT = join(process.cwd(), "..");
 const SEED = join(ROOT, "data", "seed");
 const SUMMARY = join(ROOT, "apps", "web", "data", "routes_summary.json");
 const OUT = join(ROOT, "apps", "web", "data", "profiles.json");
+const OUT25 = join(ROOT, "apps", "web", "data", "profiles25.json");
 
 /** グラフの横幅768pxに対して十分な解像度。55km路線でも約140m刻みになる */
 const MAX_POINTS = 400;
@@ -107,6 +114,8 @@ function thin(elev: number[], maxPoints: number): { elev: number[]; stepM: numbe
 }
 
 const out: Record<string, RouteProfile> = {};
+/** 路線ID -> 25m間隔の補正後標高(小数2桁)。丸め誤差は冬電力量で0.02%未満 */
+const out25: Record<string, number[]> = {};
 let mismatches = 0;
 
 meta.forEach((m, i) => {
@@ -128,6 +137,8 @@ meta.forEach((m, i) => {
   // 補正量は「補正前(欠損補間+平滑化まで)」との差で測る(diagnose と同じ前処理)
   const beforeCorrection = smooth(fillNulls(dem[i].slice()), SMOOTH_W);
   const corrSegments = toSegments(d.correctedIdx, beforeCorrection, d.elev);
+
+  out25[id] = d.elev.map((v) => Math.round(v * 100) / 100);
 
   const { elev, stepM } = thin(d.elev, MAX_POINTS);
   let peakIdx = 0;
@@ -154,6 +165,9 @@ if (mismatches > 0) {
 }
 
 writeFileSync(OUT, JSON.stringify(out));
+writeFileSync(OUT25, JSON.stringify(out25));
 const segs = Object.values(out).reduce((n, p) => n + p.corrSegments.length, 0);
+const samples = Object.values(out25).reduce((n, e) => n + e.length, 0);
 console.log(`done: ${Object.keys(out).length} routes -> ${OUT}`);
+console.log(`  25mプロファイル: ${samples}点 -> ${OUT25}`);
 console.log(`  補正区間: ${segs}区間 / 補正のある路線 ${Object.values(out).filter((p) => p.corrSegments.length > 0).length}件`);

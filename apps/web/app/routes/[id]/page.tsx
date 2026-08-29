@@ -369,9 +369,15 @@ export default async function RoutePage(props: { params: Promise<{ id: string }>
           </dl>
         </Section>
 
-        <div className="print:hidden">
+        <div className="flex flex-wrap items-center justify-between gap-4 print:hidden">
           <Link href="/routes" className="text-body font-semibold text-accent hover:text-accent-strong">
             ← 路線一覧に戻る
+          </Link>
+          <Link
+            href={`/routes/${id}/compare`}
+            className="text-body font-semibold text-accent hover:text-accent-strong"
+          >
+            車両を変えて試算する →
           </Link>
         </div>
       </div>
