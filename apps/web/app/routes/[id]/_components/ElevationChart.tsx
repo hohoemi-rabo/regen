@@ -118,14 +118,16 @@ export function ElevationChart({
 
   return (
     <div className="relative">
+      {/* touch-action: pan-y — 縦スクロールは通し、横のなぞりだけクロスヘアに使う
+          (touch-noneにすると全幅のグラフに指が乗った時点でページがスクロールできなくなる) */}
       <svg
         ref={svgRef}
         viewBox={`0 0 ${VW} ${VH}`}
-        className="block h-auto w-full touch-none"
+        className="block h-auto w-full [touch-action:pan-y]"
         role="img"
         aria-label={`${routeName}の標高プロファイル。起点${firstStop}(${formatInt(
           elev[0]
-        )}m)から最高地点${formatInt(elev[peakIdx])}mを経て終点${lastStop}(${formatInt(
+        )}m)から最高地点${formatInt(peakElevM)}mを経て終点${lastStop}(${formatInt(
           elev[elev.length - 1]
         )}m)まで、全長${formatKm(lengthM / 1000)}km。`}
         onPointerMove={onMove}

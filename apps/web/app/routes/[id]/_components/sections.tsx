@@ -1,5 +1,3 @@
-import { formatInt, formatKm, formatNumber } from "@/lib/format";
-
 /** 診断書の各ブロック。カード + 見出し + 説明 の型を揃える(プロトタイプの構成に準拠) */
 export function Section({
   title,
@@ -58,5 +56,3 @@ export function DefinitionRow({ label, value }: { label: string; value: string }
     </div>
   );
 }
-
-export const fmt = { formatInt, formatKm, formatNumber };

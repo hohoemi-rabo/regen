@@ -29,6 +29,10 @@ export interface ChargingPlan {
  * 朝満充電で出庫し、便ごとに片道電力量を引く。次の便を走ると使用可能容量を
  * 下回る時点で、その手前の便の終着時刻を充電タイミングとして返す。
  * arrivals は便の終着時刻 "HH:MM" を運行順に並べたもの。
+ *
+ * 前提: kwhPerTrip <= 使用可能容量。1便すら走り切れない車両は充電計画では
+ * 表現できない(remainingKwhが負になる)ので、呼び出し側(F-3の車両差し替え等)は
+ * 先に成立性を判定すること。
  */
 export function chargingPlan(
   kwhPerTrip: number,
