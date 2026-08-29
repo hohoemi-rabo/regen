@@ -6,7 +6,7 @@
 公共交通オープンデータチャレンジ2026応募作品(締切 2027-01-11、提出目標 1/4)。
 仕様の正本は `docs/REQUIREMENTS_v1.0.md`(機能はF-1〜F-8、アルゴリズムは§9)。
 **UIの正本は `docs/DESIGN.md`**(色・文字・余白・コンポーネント)。
-実装単位は `docs/tickets/`(T-00〜T-10)。着手前に該当チケットとDESIGN.mdの参照節を読むこと。
+実装単位は `docs/tickets/`(00〜12、番号順=依存順)。着手前に該当チケットとDESIGN.mdの参照節を読むこと。
 
 ## 絶対に守ること
 
@@ -21,6 +21,8 @@
 7. 判定は意味色3色 + 記号 + ラベルの3重で伝える(適=●#0ca30c / 条件付き=▲#fab219 / 要検討=■#d03b3b)。
    条件付きの**文字色だけは #b45309**(アンバーは明るい面でコントラスト不足のため。DESIGN.md §2.3)。
 8. 新しい色を足さない。足す必要が出たらDESIGN.mdを更新してから実装する。
+9. **チケットのTodoを必ず更新する。** 各チケット(docs/tickets/NN_*.md)のタスクは `- [ ]` で管理し、
+   完了したら `- [x]` に書き換える。チケット全体が終わったら冒頭のステータスを「完了」にする。
 
 ## コマンド
 
@@ -112,7 +114,7 @@ export default async function Page(props: {
 - **`export const runtime = "edge"` を書かない。** OpenNextアダプタはNode.jsランタイム(既定)前提。
 - `getCloudflareContext().env` はServer Component / Route Handler / Server Actionからのみ呼ぶ。
 - `next/image` の既定の画像最適化ローダーはWorkers上でそのままは動かない。画像を使うなら
-  静的アセット + 明示的な `width`/`height`、またはローダー設定をT-10で決めてから。
+  静的アセット + 明示的な `width`/`height`、またはローダー設定をチケット12で決めてから。
 - フォントは `next/font` でセルフホストし、外部リクエストとCLSを避ける(指定はDESIGN.mdに従う)。
 
 ### Server Actions
@@ -147,9 +149,9 @@ resample(25m) → fillNulls → smooth(175m) →
 ## 現状(2026-08-29)
 
 - 完了: 診断エンジンTS移植 + ゴールデンテスト(47件通過)、DBスキーマ、バッチv0、仮トップページ、
-  企画書v0.2 / 要件定義v1.0 / DESIGN.md v1.0 / チケットT-00〜T-10
-- 次: **T-00 デザイントークン整備** → T-01 F-1マップ(MapLibre、data/seed/map_data.json から)
-  → T-03 F-2診断書 → T-05 F-3比較
+  企画書v0.2 / 要件定義v1.0 / DESIGN.md v1.0
+- 次: **00 デザイントークン** → 01 共通UI → 02 F-1マップ(MapLibre、data/seed/map_data.json から)
+  → 03 F-5一覧 → 04 F-2診断書 → 05 F-3比較(以降は docs/tickets/README.md 参照)
 - 未確定事項は要件定義書§13(車両マスタの車種、充電計画の粒度など)
 
 ## データ
