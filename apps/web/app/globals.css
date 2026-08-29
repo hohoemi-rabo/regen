@@ -72,6 +72,143 @@ body {
   color: var(--ink-3);
 }
 
+/* §10 印刷: 診断書をA4縦1枚に収める(補助金申請・社内説明に添付できること) */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  :root {
+    --page: #ffffff;
+    --surface: #ffffff;
+  }
+
+  body {
+    background: #ffffff;
+    font-size: 10px;
+    /* 画面用の min-h-screen が残るとフッターが次ページへ押し出される */
+    min-height: 0 !important;
+    display: block !important;
+  }
+  footer {
+    margin-top: 4px !important;
+  }
+  footer > div {
+    padding: 2px 0 !important;
+  }
+
+  /* ダークタイルは白地 + 黒枠に反転する */
+  .bg-surface-dark {
+    background: #ffffff !important;
+    color: var(--ink-1) !important;
+    border: 1.5px solid var(--ink-1);
+  }
+  .bg-surface-dark .text-ink-3 {
+    color: var(--ink-2) !important;
+  }
+
+  /* ナビゲーションと地図は印刷しない */
+  header nav,
+  .maplibregl-map {
+    display: none !important;
+  }
+
+  /* 余白を詰めてA4縦1枚に収める */
+  main {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  /* セクション単位で改ページを避けると余白が大きく空くので、
+     切れて困る最小単位(タイル・表の行)だけを保護する */
+  section {
+    padding: 2px 6px !important;
+  }
+  /* セクションの説明文は行間を詰める(内容は残す) */
+  section > p {
+    line-height: 1.25 !important;
+    margin-top: 0 !important;
+  }
+  section > div {
+    margin-top: 3px !important;
+  }
+  .grid > div,
+  tr,
+  section dl > div {
+    break-inside: avoid;
+  }
+  h2 {
+    break-after: avoid;
+  }
+  .space-y-card-gap > * + * {
+    margin-top: 3px !important;
+  }
+  .mt-card-gap {
+    margin-top: 3px !important;
+  }
+  .text-hero {
+    font-size: 20px !important;
+    line-height: 1.05 !important;
+  }
+  .text-tile {
+    font-size: 14px !important;
+  }
+  .text-section {
+    font-size: 11px !important;
+  }
+  .text-note,
+  .text-note-sm,
+  .text-aux,
+  .text-body {
+    font-size: 8px !important;
+    line-height: 1.35 !important;
+  }
+
+  /* 結論バッジも詰める */
+  .bg-surface-dark {
+    padding: 4px 8px !important;
+  }
+
+  /* グラフは残すが高さを抑える */
+  section svg {
+    max-height: 22mm;
+    width: auto !important;
+    margin: 0 auto;
+  }
+
+  /* 数値タイルは小さく詰め、列を増やして行数を減らす */
+  .grid {
+    gap: 3px !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  }
+  .grid > div {
+    padding: 3px 5px !important;
+  }
+
+  /* 仮定リストは2段組にして高さを半分に */
+  section dl {
+    column-count: 2;
+    column-gap: 12px;
+  }
+  section dl > div {
+    break-inside: avoid;
+    padding: 1px 0 !important;
+  }
+
+  table td,
+  table th {
+    padding: 1px 4px !important;
+  }
+
+  /* グラフは残す(線は黒、面は薄いグレー) */
+  svg polyline[stroke="var(--accent)"] {
+    stroke: #000000 !important;
+  }
+  svg path[fill="var(--accent-weak)"] {
+    fill: #cccccc !important;
+  }
+}
+
 /* §8 prefers-reduced-motion では遷移を0msに */
 @media (prefers-reduced-motion: reduce) {
   *,

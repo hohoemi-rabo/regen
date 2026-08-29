@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "build-bundle": "tsx src/build.ts",
-    "seed-map": "tsx src/seed-map.ts"
+    "seed-map": "tsx src/seed-map.ts",
+    "seed-schedule": "tsx src/seed-schedule.ts",
+    "seed-profiles": "tsx src/seed-profiles.ts"
   },
   "dependencies": {
     "@regen/core": "workspace:*"

@@ -3,4 +3,5 @@ export * from "./profile";
 export * from "./correction";
 export * from "./energy";
 export * from "./charging";
+export * from "./comparison";
 export * from "./diagnose";

@@ -5,6 +5,7 @@ node_modules/
 .cache/
 out/
 dist/
+data/gtfs/
 *.log
 .env*
 .dev.vars

@@ -1,5 +1,6 @@
 import {
   STEP, SMOOTH_W, GRADE_WIN, DEFAULT_EV, SUMMER_AUX_W, WINTER_AUX_W, VehicleParams,
+  cruiseSpeedKmh,
 } from "./params";
 import { fillNulls, smooth } from "./profile";
 import { slopeLimit, anchorInterp } from "./correction";
@@ -38,6 +39,8 @@ export interface Diagnosis {
   dailyKwh: number;
   extraCharges: number;
   correctedM: number;
+  /** 補正が入ったサンプルindex(mode Aのみ。位置の開示 = F-2-8 に使う) */
+  correctedIdx: number[];
   verdict: Verdict;
   /** 補正・平滑化後の縦断プロファイル */
   elev: number[];
@@ -77,7 +80,7 @@ export function diagnose(input: DiagnoseInput, veh: VehicleParams = DEFAULT_EV):
       if (g < gmin) gmin = g;
     }
   }
-  const vKmh = L < 10000 ? 30 : 32;
+  const vKmh = cruiseSpeedKmh(L);
   const summer = energyForProfile(e, vKmh, SUMMER_AUX_W, veh);
   const winter = energyForProfile(e, vKmh, WINTER_AUX_W, veh);
   const battPct = (2 * winter.totalKwh / veh.batteryKwh) * 100;
@@ -96,6 +99,7 @@ export function diagnose(input: DiagnoseInput, veh: VehicleParams = DEFAULT_EV):
     dailyKwh,
     extraCharges: extraCharges(dailyKwh, veh),
     correctedM: correctedIdx.length * STEP,
+    correctedIdx,
     verdict: judge(battPct, gmax),
     elev: e,
   };
