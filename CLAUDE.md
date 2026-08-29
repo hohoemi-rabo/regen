@@ -146,16 +146,48 @@ resample(25m) → fillNulls → smooth(175m) →
 モードB: anchorInterp(停留所間を線形補間)
 → エネルギー積算(力行/回生) → 空調加算 → 充電計画
 
-## 現状(2026-08-29)
+## 現状(2026-08-30)
 
-- 完了: 診断エンジンTS移植 + ゴールデンテスト(47件通過)、DBスキーマ、バッチv0、仮トップページ、
-  企画書v0.2 / 要件定義v1.0 / DESIGN.md v1.0 / チケット00〜12(docs/tickets/)
+- 完了: 診断エンジンTS移植 + ゴールデンテスト(47件通過)、DBスキーマ、バッチv0、
+  企画書v0.2 / 要件定義v1.0 / DESIGN.md v1.0、**チケット00〜04**
+  (00トークン / 01共通UI / 02 F-1マップ / 03 F-5一覧 / 04 F-2診断書。詳細は各チケット参照)
 - GitHub: https://github.com/hohoemi-rabo/regen (main直コミット・直push)
-- **次: チケット00(デザイントークン)から実装開始。** 00 → 01 共通UI → 02 F-1マップ →
-  03 F-5一覧 → 04 F-2診断書 → 05 F-3比較(以降は docs/tickets/README.md 参照)
+- **次: チケット05(F-3 車両比較 `/routes/[id]/compare`)。** 以降 06 → … は docs/tickets/README.md 参照
 - 各チケットの進捗はチケット内のステータス行とTodoチェックボックスが正(この節は概況のみ)
 - PC表示: 一覧(F-5)・比較(F-3)は最大幅1200px、診断書は900px(DESIGN §4.1)
-- 未確定事項は要件定義書§13(車両マスタの車種、充電計画の粒度など)
+- 未確定事項は要件定義書§13(車両マスタの車種、TCOの項目など)
+
+### 実装済みの資産(05以降で再利用する)
+
+- **共通UI** `apps/web/app/_components/`: VerdictChip / ConclusionBadge / StatTile(+Grid) /
+  Button / DataTable(ソート・行クリック対応) / FilterRow / verdict.ts(判定の記号・色の単一情報源)。
+  数値は `apps/web/lib/format.ts`(電費2桁/距離1桁/整数3桁区切り)経由で出す
+- **診断書の部品** `apps/web/app/routes/[id]/_components/`: ElevationChart(自前SVG、補正区間の帯+破線、
+  ホバーで距離・標高・勾配) / sections.tsx(Section / Bar / DefinitionRow)
+- **coreの追加API**(アルゴリズム本体は不変): `Diagnosis.correctedIdx`(補正位置) /
+  `cruiseSpeedKmh()` / `CO2` / `compareDiesel()` / `chargingPlan()`(実ダイヤ充電計画。
+  1便が使用可能容量を超える車両は表現不可 — F-3で車両を差し替える際は先に成立性判定)
+- **データ生成**(`batch/`、生成物はコミット済み): `seed-map`(→ public/map_data.json + data/routes_summary.json、
+  id = `feed_route_id`) / `seed-profiles`(→ data/profiles.json: 表示用標高・補正区間・夏冬kWh) /
+  `seed-schedule`(→ data/schedules.json: 代表運行日ダイヤ。要 `data/gtfs/` 展開)
+- **路線ID**は `feed_route_id`(例 `Minamishinshuseibu1_13`)で全データ共通
+
+### 便数と充電計画の方針(チケット04で確定)
+
+- GTFSの `trips` は**ダイヤ種別をまたいだ合計便数**(46路線中13路線で実日次と乖離)。
+  一覧・マップ・判定の日次kWh/充電回数はこの合計値のまま(ゴールデンテスト固定)。
+  診断書の充電計画だけ**代表運行日**(最多便数の曜日)の実ダイヤで算出し、乖離は画面で開示する。
+  この二本立てを崩さない
+
+### 検証の作法
+
+- 本番ビルド確認は **`./scripts/preview.sh [ポート]`** を使う(devサーバー停止→ポート解放待ち→
+  クリーンビルド→起動を自動化)。`next dev` 起動中の `next build`、`.next` を残した再ビルド、
+  kill漏れ(WSLでは `lsof -ti` が効かないので `ss -tlnp` からPIDを取る)はすべて画面が壊れる
+- ヘッドレス確認: `~/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell`。
+  MapLibreには `--enable-unsafe-swiftshader --use-gl=angle --use-angle=swiftshader` が必須。
+  印刷は `--print-to-pdf` → `pdftoppm -png` で目視。コンソールエラーは `--enable-logging=stderr --log-level=0`
+- 診断書の印刷はA4縦1枚が原則(46路線中39路線が1枚、補正・充電の多い7路線は2枚で許容済み)
 
 ## データ
 
