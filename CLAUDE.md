@@ -148,11 +148,11 @@ resample(25m) → fillNulls → smooth(175m) →
 
 ## 現状(2026-08-30)
 
-- 完了: 診断エンジンTS移植 + ゴールデンテスト(47件通過)、DBスキーマ、バッチv0、
-  企画書v0.2 / 要件定義v1.0 / DESIGN.md v1.0、**チケット00〜04**
-  (00トークン / 01共通UI / 02 F-1マップ / 03 F-5一覧 / 04 F-2診断書。詳細は各チケット参照)
+- 完了: 診断エンジンTS移植 + ゴールデンテスト(60件通過)、DBスキーマ、バッチv0、
+  企画書v0.2 / 要件定義v1.0 / DESIGN.md v1.0、**チケット00〜05**
+  (00トークン / 01共通UI / 02 F-1マップ / 03 F-5一覧 / 04 F-2診断書 / 05 F-3車両比較。詳細は各チケット参照)
 - GitHub: https://github.com/hohoemi-rabo/regen (main直コミット・直push)
-- **次: チケット05(F-3 車両比較 `/routes/[id]/compare`)。** 以降 06 → … は docs/tickets/README.md 参照
+- **次: チケット06(D1/R2セットアップ + API。D1/R2の作成はユーザー作業)。** 以降は docs/tickets/README.md 参照
 - 各チケットの進捗はチケット内のステータス行とTodoチェックボックスが正(この節は概況のみ)
 - PC表示: 一覧(F-5)・比較(F-3)は最大幅1200px、診断書は900px(DESIGN §4.1)
 - 未確定事項は要件定義書§13(車両マスタの車種、TCOの項目など)
@@ -166,11 +166,23 @@ resample(25m) → fillNulls → smooth(175m) →
   ホバーで距離・標高・勾配) / sections.tsx(Section / Bar / DefinitionRow)
 - **coreの追加API**(アルゴリズム本体は不変): `Diagnosis.correctedIdx`(補正位置) /
   `cruiseSpeedKmh()` / `CO2` / `compareDiesel()` / `chargingPlan()`(実ダイヤ充電計画。
-  1便が使用可能容量を超える車両は表現不可 — F-3で車両を差し替える際は先に成立性判定)
+  1便が使用可能容量を超える車両は表現不可 — `simulateVehicle()` が先に成立性を判定して `infeasible` を返す)
+- **車両比較の部品** `packages/core/`: `vehicles.ts`(車両マスタ4件。型はD1の vehicles テーブルに一致。
+  06完了後に `GET /api/vehicles` へ差し替え) / `simulate.ts`(`simulateVehicle` / `tcoSeries` / `breakEvenYear`)。
+  画面側は `apps/web/app/routes/[id]/compare/_components/` に Slider / NumberField / TcoChart / VehicleColumn
 - **データ生成**(`batch/`、生成物はコミット済み): `seed-map`(→ public/map_data.json + data/routes_summary.json、
-  id = `feed_route_id`) / `seed-profiles`(→ data/profiles.json: 表示用標高・補正区間・夏冬kWh) /
-  `seed-schedule`(→ data/schedules.json: 代表運行日ダイヤ。要 `data/gtfs/` 展開)
+  id = `feed_route_id`) / `seed-profiles`(→ data/profiles.json: 表示用標高・補正区間・夏冬kWh、
+  および data/profiles25.json: 25m解像度の補正後標高) / `seed-schedule`(→ data/schedules.json:
+  代表運行日ダイヤ。要 `data/gtfs/` 展開)
 - **路線ID**は `feed_route_id`(例 `Minamishinshuseibu1_13`)で全データ共通
+
+### ブラウザ再計算に使うプロファイル(チケット05で確定)
+
+- **F-3/F-4がブラウザで再計算するときは `apps/web/data/profiles25.json`(25m間隔・補正後)を使う。**
+  `profiles.json` の `elev` は表示用に最大400点へ間引いてあり `stepM` が路線ごとに25〜150mと変わる。
+  そちらで `energyForProfile()` を回すと冬電力量が最大1.55%ずれ、診断書と数値が食い違う
+- `routes_summary.json` の `gmax` は**%表記**。`judge()` は分数で比較するので `/100` してから渡す
+- 25m配列は1路線分だけをServer→Clientのpropsで渡す(全路線分を渡さない)
 
 ### 便数と充電計画の方針(チケット04で確定)
 
