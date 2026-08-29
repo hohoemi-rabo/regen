@@ -1,6 +1,6 @@
 # 01 共通UIコンポーネント
 
-ステータス: 未着手
+ステータス: 完了
 依存: 00
 参照: DESIGN.md §5(コンポーネント仕様) §2.3(アンバーの緩和策)
 
@@ -26,11 +26,11 @@
 
 ## Todo
 
-- [ ] VerdictChip(適/条件付き/要検討 × 背景あり/なし)
-- [ ] ConclusionBadge(判定チップ白抜き + ヒーロー数値 + 補足行)
-- [ ] StatTile + StatTileGrid
-- [ ] Button(3種)
-- [ ] DataTable(ヘッダ/行罫線/右寄せ数値列/行ホバー)
-- [ ] FilterRow(セレクト3つ + 解除。状態は親から制御)
-- [ ] 数値フォーマッタ(3桁区切り、小数桁固定: 電費2/距離1/標高0 — DESIGN §3.3)
-- [ ] 確認用ページ(/dev/components 等、後で削除可)で全部品の表示確認
+- [x] VerdictChip(適/条件付き/要検討 × 背景あり/なし)
+- [x] ConclusionBadge(判定チップ白抜き + ヒーロー数値 + 補足行)
+- [x] StatTile + StatTileGrid
+- [x] Button(3種)
+- [x] DataTable(ヘッダ/行罫線/右寄せ数値列/行ホバー)
+- [x] FilterRow(セレクト3つ + 解除。状態は親から制御)
+- [x] 数値フォーマッタ(3桁区切り、小数桁固定: 電費2/距離1/標高0 — DESIGN §3.3)
+- [x] 確認用ページ(/dev/components 等、後で削除可)で全部品の表示確認

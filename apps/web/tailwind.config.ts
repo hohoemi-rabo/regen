@@ -24,7 +24,11 @@ const config: Config = {
           cond: "var(--verdict-cond)", // 図形専用(地図の線・凡例マーカー)
           "cond-text": "var(--verdict-cond-text)", // 文字はこちら(DESIGN §2.3)
           ng: "var(--verdict-ng)",
+          "ok-bg": "var(--verdict-ok-bg)",
+          "cond-bg": "var(--verdict-cond-bg)",
+          "ng-bg": "var(--verdict-ng-bg)",
         },
+        "row-hover": "var(--row-hover)",
         accent: {
           DEFAULT: "var(--accent)",
           strong: "var(--accent-strong)",

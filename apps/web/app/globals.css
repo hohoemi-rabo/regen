@@ -24,6 +24,12 @@
   --verdict-cond-text: #b45309;
   --verdict-ng: #d03b3b;
 
+  /* §5.1 チップ背景(意味色の10%不透明度) / §5.5 行ホバー(アクセント4%) */
+  --verdict-ok-bg: rgba(12, 163, 12, 0.1);
+  --verdict-cond-bg: rgba(250, 178, 25, 0.1);
+  --verdict-ng-bg: rgba(208, 59, 59, 0.1);
+  --row-hover: rgba(42, 120, 214, 0.04);
+
   /* §2.4 アクセント(唯一のブランド色) */
   --accent: #2a78d6;
   --accent-strong: #1c5cab;
