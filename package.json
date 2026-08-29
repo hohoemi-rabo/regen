@@ -1,0 +1,13 @@
+{
+  "name": "regen",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "test": "pnpm --filter @regen/core test",
+    "batch": "pnpm --filter @regen/batch build-bundle"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
