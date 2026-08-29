@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build-bundle": "tsx src/build.ts"
+    "build-bundle": "tsx src/build.ts",
+    "seed-map": "tsx src/seed-map.ts"
   },
   "dependencies": {
     "@regen/core": "workspace:*"

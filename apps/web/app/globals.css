@@ -57,6 +57,21 @@ body {
   outline-offset: 2px;
 }
 
+/* MapLibreポップアップをトークンに合わせる(DESIGN §5.4ツールチップ準拠) */
+.maplibregl-popup-content {
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+.maplibregl-popup-close-button {
+  right: 4px;
+  top: 2px;
+  font-size: 16px;
+  color: var(--ink-3);
+}
+
 /* §8 prefers-reduced-motion では遷移を0msに */
 @media (prefers-reduced-motion: reduce) {
   *,
