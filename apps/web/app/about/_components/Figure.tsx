@@ -1,3 +1,6 @@
+/* eslint-disable @next/next/no-img-element --
+   Workersでは next/image の既定ローダーが動かないので、図版は public/ の静的アセットを
+   素の <img> + 明示的な width/height で出す(CLAUDE.md「Workers固有の制約」)。 */
 /**
  * 図のわく。画面写真とSVG図で扱いを揃える。
  *

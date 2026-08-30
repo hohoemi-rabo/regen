@@ -108,19 +108,22 @@ export function CompareScreen({
       console.log(`F-3 再計算: ${(performance.now() - t0).toFixed(2)}ms (${elev25.length}点 × 2車両)`);
     }
     return { ra, rb };
+    // **calib と thresholds を落とさない。** calib は localStorage を読んだあと
+    // (ハイドレーション後)に入れ替わるので、依存に無いとF-4の補正が画面に反映されない
   }, [elev25, lengthM, gmax, tripsPerDay, arrivals, auxW, yenPerKwh, yenPerLiterDiesel,
-      vehA, vehB, a.massKg, a.batteryKwh, b.massKg, b.batteryKwh]);
+      vehA, vehB, a.massKg, a.batteryKwh, b.massKg, b.batteryKwh, calib, thresholds]);
 
   const { ra, rb } = sim;
   const annualKm = lengthKm * tripsPerDay * annualDays;
-  const tco = {
+  // 毎レンダーで作り直すと下の useMemo が毎回走るので、ここで固定する
+  const tco = useMemo(() => ({
     initialYenA: Math.max(0, a.priceYen - a.subsidyYen),
     initialYenB: Math.max(0, b.priceYen - b.subsidyYen),
     annualYenA: ra.dayYen * annualDays,
     annualYenB: rb.dayYen * annualDays,
     years: TCO_YEARS,
-  };
-  const series = useMemo(() => tcoSeries(tco), [tco.initialYenA, tco.initialYenB, tco.annualYenA, tco.annualYenB]);
+  }), [a.priceYen, a.subsidyYen, b.priceYen, b.subsidyYen, ra.dayYen, rb.dayYen, annualDays]);
+  const series = useMemo(() => tcoSeries(tco), [tco]);
   const be = breakEvenYear(tco);
   // 定価を持たない車種(標準EVバス等)は0円のまま。0円同士の比較は損益分岐に意味がない
   const needsPrice = a.priceYen <= 0 || b.priceYen <= 0;

@@ -1,0 +1,44 @@
+# 型チェック・Lint・ユニットテスト(要件§10.2)。
+#
+# ここではビルドしない。`next build` は46路線×2ページを事前生成する過程でD1を引くので
+# シードが要る(deploy.yml がやる)。PRと作業ブランチには「速く落ちる」ことの方が要る。
+#
+# main では deploy.yml が `uses:` でこのワークフローを呼ぶ。二重に走らせても得るものが
+# 無いので、こちらの push トリガは main を見ない。
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+  workflow_call:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          # pnpm 11 は Node 22.13 以上を要求する(package.json の packageManager で固定)
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: 型チェック
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: テスト(ゴールデン46路線 + 単体)
+        run: pnpm test

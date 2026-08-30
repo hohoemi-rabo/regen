@@ -10,14 +10,19 @@ import {
   simulateVehicle,
   tcoSeries,
   toVehicleParams,
+  type DiagnoseInput,
   type SimInput,
 } from "../src/index";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const fx = JSON.parse(readFileSync(join(here, "fixtures", "golden.json"), "utf-8"));
+/** フィクスチャは diagnose() の入力そのものに id を足した形 */
+type GoldenRoute = DiagnoseInput & { id: string };
+const fx = JSON.parse(readFileSync(join(here, "fixtures", "golden.json"), "utf-8")) as {
+  routes: GoldenRoute[];
+};
 
 /** ゴールデンの生標高から、F-3がブラウザで受け取るのと同じ25m補正後プロファイルを作る */
-function profileOf(r: any) {
+function profileOf(r: GoldenRoute) {
   const d = diagnose({ elev: r.elev, gap: r.gap, mode: r.mode, anchors: r.anchors, trips: r.trips });
   return { d, elev: d.elev };
 }

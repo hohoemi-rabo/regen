@@ -4,4 +4,7 @@ packages:
   - batch
 allowBuilds:
   esbuild: true
+  # eslint-plugin-import-x(eslint-config-next 経由)のネイティブ解決器。
+  # ビルドを許さないとJS実装に落ちて import の解決が遅くなる
+  unrs-resolver: true
   workerd: true

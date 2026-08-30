@@ -6,7 +6,8 @@
   "main": "./src/schema.ts",
   "types": "./src/schema.ts",
   "scripts": {
-    "generate": "drizzle-kit generate"
+    "generate": "drizzle-kit generate",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "better-auth": "^1.7.2",

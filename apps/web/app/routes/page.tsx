@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { getThresholds, listRoutes } from "@/lib/data";
 import { RouteListScreen, type RouteRow } from "./_components/RouteListScreen";
@@ -44,9 +45,9 @@ export default async function RoutesPage() {
       <h1 className="text-page-title">路線一覧</h1>
       <p className="mt-1 text-body text-ink-2">
         全{rows.length}路線の診断値。列見出しで並べ替えできます。地図は
-        <a href="/" className="text-accent hover:text-accent-strong">
+        <Link href="/" className="text-accent hover:text-accent-strong">
           EV適性マップ
-        </a>
+        </Link>
         へ。
       </p>
       <div className="mt-5">

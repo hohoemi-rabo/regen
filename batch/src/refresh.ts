@@ -151,6 +151,8 @@ async function main() {
     if (expiring.length) console.log(`==> まもなく期限切れのフィード: ${expiring.join(" / ")}`);
 
     // ---- 5. 公開(R2 → D1 → 版切替)------------------------------------------
+    // data/bundle/d1.json に残す「公開した時刻」。--no-publish でも成果物の時刻として使う
+    const createdAt = Date.now();
     if (opts.noPublish) {
       console.log("==> --no-publish のためR2/D1には書きません");
     } else {
@@ -160,7 +162,7 @@ async function main() {
           "--skip-fetch を外して一度取得してください"
         );
       }
-      const res = await publish(t, bundle, version, Date.now(), thresholds);
+      const res = await publish(t, bundle, version, createdAt, thresholds);
       console.log(`==> 公開しました: 版 ${res.version} / R2 ${res.objects} オブジェクト / D1 ${res.statements} 文`);
     }
 
@@ -168,7 +170,8 @@ async function main() {
     // **公開したあとに書く。** data/bundle/ は「いま配信されている内容」であり、
     // 次回の変化ガードの基準でもある。公開前に書くと、公開に失敗した回の差分が
     // 基準に混ざって次回のガードをすり抜けてしまう
-    writeArtifacts(ROOT, bundle);
+    // 公開したときだけ d1.json を更新する(--no-publish は据え置き)
+    writeArtifacts(ROOT, bundle, opts.noPublish || !version ? null : { version, createdAt, thresholds });
 
     const secs = ((Date.now() - startedAt) / 1000).toFixed(1);
     const message = [

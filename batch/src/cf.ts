@@ -80,6 +80,14 @@ export async function d1ExecFile(t: CfTarget, sqlPath: string): Promise<void> {
   await withRetry("d1 execute", () => run(t, ["d1", "execute", DB, "--file", sqlPath, "-y"]));
 }
 
+/**
+ * マイグレーションを適用する(冪等。適用済みのものは飛ばされる)。
+ * シード(seed-local.ts)は空のローカルD1に対して走るので、INSERTの前にテーブルを作る。
+ */
+export function d1Migrate(t: CfTarget): void {
+  run(t, ["d1", "migrations", "apply", DB]);
+}
+
 async function runAsync(t: CfTarget, args: string[]): Promise<void> {
   await execFileAsync(bin(t.root), [...args, t.remote ? "--remote" : "--local"], {
     cwd: join(t.root, "apps", "web"),

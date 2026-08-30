@@ -4,7 +4,7 @@
  * 要件§9.1の処理順序は packages/core が持つ。ここがやるのは
  * 「GTFSから代表経路を決め、標高を貼り、diagnose() に渡し、画面が読む形に整える」ところまで。
  *
- * 出力は data/bundle/ に置く7ファイル:
+ * 出力は data/bundle/ に置く8ファイル:
  *   map.geojson        F-1マップ用(簡略ポリライン + 判定)
  *   routes_summary.json 一覧・D1 routes の素
  *   profiles.json      F-2診断書の表示用縦断(最大400点に間引き)
@@ -12,6 +12,9 @@
  *   schedules.json     代表運行日のダイヤ(F-2-5 充電計画)
  *   agencies.json      D1 agencies の素
  *   feeds.json         D1 feeds の素(有効期限監視 = F-8-5)
+ *   d1.json            上の7つから復元できない分(公開した版・時刻・しきい値と
+ *                      lengthM / maxGrade / feedOf)。ビルド用のローカルD1/R2を
+ *                      診断を回さずに作り直すために要る(batch/src/seed-local.ts)
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -437,7 +440,9 @@ export async function buildBundle(
     };
     /** 丸め誤差は冬電力量で0.02%未満 */
     profiles25[id] = d.elev.map((v) => Math.round(v * 100) / 100);
-    // D1 routes.length_m は生の経路長。判定に使う (n-1)*STEP とはサブメートルの差がある
+    // D1 routes.length_m は生の経路長。判定に使う (n-1)*STEP とは最大24m違う
+    // (11路線はkm表示の小数1桁が変わる)。だから profiles.json の lengthM では代用できず、
+    // d1.json に別途持たせている
     lengthM[id] = route.pathLenM;
     maxGrade[id] = d.gmax;
     feedOf[id] = feedId;
@@ -450,8 +455,39 @@ export async function buildBundle(
   };
 }
 
+/**
+ * `data/bundle/d1.json` の中身。
+ *
+ * 他の7ファイルは「人が差分を読むための公開値」だが、これは**ビルド用のローカルD1/R2を
+ * 診断を回さずに作り直すための残り**。`Bundle` のうち他のファイルから復元できない
+ * 3項目(`lengthM` はkmへ丸めてあるため戻せない / `maxGrade` は分数のまま要る /
+ * `feedOf` はどこにも無い)と、公開したときの版・時刻・しきい値を持つ。
+ *
+ * 版としきい値まで持たせるのは、シードが**本番が公開したのと同一の判定**を再生するため。
+ * ここが無いと、CIのローカルD1は既定しきい値で計算し直すことになり、
+ * 管理画面(F-7-4)でしきい値を変えている場合に本番と違うページを焼いてしまう。
+ */
+export interface D1Seed {
+  version: string;
+  createdAt: number;
+  thresholds: Thresholds;
+  lengthM: Record<string, number>;
+  maxGrade: Record<string, number>;
+  feedOf: Record<string, string>;
+}
+
 /** data/bundle/ へ書き出す。R2に上げる形とは別(こちらは差分を人が読めるようにコミットする) */
-export function writeArtifacts(root: string, b: Bundle): void {
+export function writeArtifacts(
+  root: string,
+  b: Bundle,
+  /**
+   * 公開に成功したときだけ渡す。null なら `d1.json` に触れない。
+   * `--no-publish` は何も配信していないので、そこで版と時刻を書き換えると
+   * 「D1にその行が無い版」を成果物が名乗ることになる(CLAUDE.md の
+   * 「data/bundle/ は公開に成功したあとに書く」に反する)。
+   */
+  published: { version: string; createdAt: number; thresholds: Thresholds } | null
+): void {
   const dir = join(root, "data", "bundle");
   mkdirSync(dir, { recursive: true });
   const w = (name: string, value: unknown, pretty = false) =>
@@ -464,5 +500,22 @@ export function writeArtifacts(root: string, b: Bundle): void {
   w("schedules.json", b.schedules);
   w("agencies.json", b.agencies, true);
   w("feeds.json", b.feeds, true);
-  console.log(`  data/bundle/ に7ファイルを書き出しました(路線 ${b.summary.length} / フィード ${b.feeds.length})`);
+
+  if (published) {
+    const seed: D1Seed = {
+      version: published.version,
+      createdAt: published.createdAt,
+      thresholds: published.thresholds,
+      lengthM: b.lengthM,
+      maxGrade: b.maxGrade,
+      feedOf: b.feedOf,
+    };
+    w("d1.json", seed, true);
+  }
+
+  const n = published ? 8 : 7;
+  console.log(
+    `  data/bundle/ に${n}ファイルを書き出しました(路線 ${b.summary.length} / フィード ${b.feeds.length})` +
+    (published ? "" : " ※--no-publish のため d1.json は据え置き")
+  );
 }
