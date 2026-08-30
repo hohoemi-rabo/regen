@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getCurrentBundle, getProfile, getRoute, listRouteIds, listVehicles } from "@/lib/data";
+import { getCurrentBundle, getProfile, getRoute, getThresholds, listRouteIds, listVehicles } from "@/lib/data";
 import { CompareScreen } from "./_components/CompareScreen";
 
 async function load(id: string) {
@@ -40,6 +40,7 @@ export default async function ComparePage(props: { params: Promise<{ id: string 
   // 車両マスタはD1が正本(チケット06以降)。Clientにはシリアライズ可能な値だけを渡す
   const vehicles = await listVehicles();
   const bundle = await getCurrentBundle();
+  const thresholds = await getThresholds();
 
   return (
     <CompareScreen
@@ -73,6 +74,7 @@ export default async function ComparePage(props: { params: Promise<{ id: string 
       repTrips={schedule.repTrips}
       totalTrips={schedule.totalTrips}
       arrivals={schedule.trips.map((t) => t.arr)}
+      thresholds={thresholds}
     />
   );
 }

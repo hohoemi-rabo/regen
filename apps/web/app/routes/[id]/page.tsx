@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getProfile, getRoute, listRouteIds } from "@/lib/data";
+import { getProfile, getRoute, getThresholds, listRouteIds } from "@/lib/data";
 import { formatInt } from "@/lib/format";
 import { DiagnosisSheet } from "./_components/DiagnosisSheet";
 
@@ -64,5 +64,13 @@ export default async function RoutePage(props: { params: Promise<{ id: string }>
   const { row, profile, schedule } = data;
 
   // 表示と再計算は DiagnosisSheet(Client)が行う。じぶん補正(F-4)を当てるため
-  return <DiagnosisSheet id={id} row={row} profile={profile} schedule={schedule} />;
+  return (
+    <DiagnosisSheet
+      id={id}
+      row={row}
+      profile={profile}
+      schedule={schedule}
+      thresholds={await getThresholds()}
+    />
+  );
 }

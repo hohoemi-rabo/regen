@@ -17,6 +17,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   diagnose, fillNulls, haversine, resample, smooth, SMOOTH_W, STEP,
+  DEFAULT_EV, DEFAULT_THRESHOLDS, type Thresholds,
 } from "@regen/core";
 import { parseCsv } from "./csv";
 import { elevAt, prefetchTiles } from "./dem";
@@ -297,7 +298,8 @@ function simplify(lat: number[], lon: number[], maxPts: number): [number, number
 export async function buildBundle(
   root: string,
   sources: FeedSource[],
-  remote?: RemoteFeed[]
+  remote?: RemoteFeed[],
+  thresholds: Thresholds = DEFAULT_THRESHOLDS
 ): Promise<Bundle> {
   const gtfsDir = join(root, "data", "gtfs");
   const remoteById = new Map((remote ?? []).map((r) => [r.id, r]));
@@ -367,7 +369,11 @@ export async function buildBundle(
 
     const elev: (number | null)[] = [];
     for (let i = 0; i < rs.lat.length; i++) elev.push(await elevAt(rs.lat[i], rs.lon[i]));
-    const d = diagnose({ elev, gap: rs.gap, mode: route.mode, anchors, trips: route.trips });
+    const d = diagnose(
+      { elev, gap: rs.gap, mode: route.mode, anchors, trips: route.trips },
+      DEFAULT_EV,
+      thresholds
+    );
 
     // 一覧・マップに出す km は診断が使った長さ (n-1)*STEP から丸める。
     // D1 の length_m は生の経路長(下の lengthM)で、両者はサブメートル違う

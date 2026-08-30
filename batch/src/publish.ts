@@ -16,6 +16,7 @@ import { VEHICLES } from "@regen/core";
 import { d1ExecFile, d1Query, q, n, r2Put, type CfTarget } from "./cf";
 import type { Bundle } from "./pipeline";
 import { paramsSnapshot } from "./snapshot";
+import { DEFAULT_THRESHOLDS, normalizeThresholds, type Thresholds } from "@regen/core";
 
 const SOURCE_NOTE = "GTFSデータリポジトリ(gtfs-data.jp)/ 地理院タイル(国土地理院)";
 /**
@@ -31,7 +32,12 @@ const workDir = (t: CfTarget) => join(t.root, "batch", "out", "publish");
 export const profileKey = (version: string, id: string) => `bundles/${version}/profile/${id}.json`;
 
 /** R2に置くオブジェクト。routes.json と 1路線1オブジェクト、最後に meta.json */
-function buildObjects(b: Bundle, version: string, createdAt: number): Map<string, string> {
+function buildObjects(
+  b: Bundle,
+  version: string,
+  createdAt: number,
+  thresholds: Thresholds
+): Map<string, string> {
   const objects = new Map<string, string>();
   objects.set(`bundles/${version}/routes.json`, JSON.stringify(b.geojson));
 
@@ -54,7 +60,7 @@ function buildObjects(b: Bundle, version: string, createdAt: number): Map<string
     createdAt,
     routeCount: b.summary.length,
     feedCount: b.feeds.length,
-    params: paramsSnapshot(),
+    params: paramsSnapshot(thresholds),
     source: SOURCE_NOTE,
   }));
   return objects;
@@ -92,7 +98,7 @@ async function uploadAll(t: CfTarget, objects: Map<string, string>, version: str
 }
 
 /** D1の行(版切替は含めない)。すべて ON CONFLICT DO UPDATE で冪等 */
-function buildSql(b: Bundle, version: string, createdAt: number): string[] {
+function buildSql(b: Bundle, version: string, createdAt: number, thresholds: Thresholds): string[] {
   const sql: string[] = ["PRAGMA defer_foreign_keys = true;"];
   const agencyByFeed = new Map(b.agencies.map((a) => [a.feedId, a.id]));
 
@@ -135,25 +141,22 @@ function buildSql(b: Bundle, version: string, createdAt: number): string[] {
     );
   }
   for (const v of VEHICLES) {
+    // **DO NOTHING。** 管理画面(F-7-2)で直した値をバッチが毎週上書きしないように、
+    // 種は「まだ無い車両」にだけ入れる。既にある行には触れない
     sql.push(
       `INSERT INTO vehicles (id, name, powertrain, mass_kg, battery_kwh, drive_eff, regen_eff, ` +
       `cda, crr, fuel_km_per_l, price_yen, subsidy_yen, source_url, note, is_public) VALUES (` +
       `${q(v.id)}, ${q(v.name)}, ${q(v.powertrain)}, ${n(v.massKg)}, ${n(v.batteryKwh)}, ` +
       `${n(v.driveEff)}, ${n(v.regenEff)}, ${n(v.cda)}, ${n(v.crr)}, ${n(v.fuelKmPerL)}, ` +
       `${n(v.priceYen)}, ${n(v.subsidyYen)}, ${q(v.sourceUrl)}, ${q(v.note)}, 1) ` +
-      `ON CONFLICT(id) DO UPDATE SET name=excluded.name, powertrain=excluded.powertrain, ` +
-      `mass_kg=excluded.mass_kg, battery_kwh=excluded.battery_kwh, drive_eff=excluded.drive_eff, ` +
-      `regen_eff=excluded.regen_eff, cda=excluded.cda, crr=excluded.crr, ` +
-      `fuel_km_per_l=excluded.fuel_km_per_l, price_yen=excluded.price_yen, ` +
-      `subsidy_yen=excluded.subsidy_yen, source_url=excluded.source_url, note=excluded.note, ` +
-      `is_public=excluded.is_public;`
+      `ON CONFLICT(id) DO NOTHING;`
     );
   }
   // 新版はまだ配信しない。切替は全部書き終えてから(switchCurrent)
   sql.push(
     `INSERT INTO bundles (version, created_at, route_count, feed_count, params_json, source_note, is_current) ` +
     `VALUES (${q(version)}, ${n(createdAt)}, ${n(b.summary.length)}, ${n(b.feeds.length)}, ` +
-    `${q(JSON.stringify(paramsSnapshot()))}, ${q(SOURCE_NOTE)}, 0) ` +
+    `${q(JSON.stringify(paramsSnapshot(thresholds)))}, ${q(SOURCE_NOTE)}, 0) ` +
     `ON CONFLICT(version) DO UPDATE SET created_at=excluded.created_at, ` +
     `route_count=excluded.route_count, feed_count=excluded.feed_count, ` +
     `params_json=excluded.params_json, source_note=excluded.source_note;`
@@ -213,12 +216,18 @@ export interface PublishResult {
 }
 
 /** R2 → D1 → 版切替。ここを通ったら新版が配信されている */
-export async function publish(t: CfTarget, b: Bundle, version: string, createdAt: number): Promise<PublishResult> {
-  const objects = buildObjects(b, version, createdAt);
+export async function publish(
+  t: CfTarget,
+  b: Bundle,
+  version: string,
+  createdAt: number,
+  thresholds: Thresholds = DEFAULT_THRESHOLDS
+): Promise<PublishResult> {
+  const objects = buildObjects(b, version, createdAt, thresholds);
   console.log(`==> ${t.remote ? "本番" : "ローカル"}R2へ ${objects.size} オブジェクト(版 ${version})`);
   await uploadAll(t, objects, version);
 
-  const sql = buildSql(b, version, createdAt);
+  const sql = buildSql(b, version, createdAt, thresholds);
   console.log(`==> ${t.remote ? "本番" : "ローカル"}D1へ ${sql.length - 1} 文`);
   await applySql(t, sql, "seed.sql");
 
@@ -230,4 +239,21 @@ export async function publish(t: CfTarget, b: Bundle, version: string, createdAt
   ], "switch.sql");
 
   return { version, objects: objects.size, statements: sql.length - 1 };
+}
+
+/**
+ * 管理画面(F-7-4)が保存した判定しきい値を読む。
+ * 未設定・壊れていれば要件§5の初期値に落とす(バッチが設定不備で止まらないように)。
+ */
+export function loadThresholds(t: CfTarget): Thresholds {
+  try {
+    const rows = d1Query<{ value: string }>(
+      t,
+      "SELECT value FROM settings WHERE key = 'thresholds' LIMIT 1"
+    );
+    if (!rows[0]) return DEFAULT_THRESHOLDS;
+    return normalizeThresholds(JSON.parse(rows[0].value)) ?? DEFAULT_THRESHOLDS;
+  } catch {
+    return DEFAULT_THRESHOLDS;
+  }
 }

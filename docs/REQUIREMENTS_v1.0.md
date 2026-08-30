@@ -152,6 +152,10 @@ regen/
 - **条件付き**: 使用率 60〜85%、または急勾配区間あり
 - **要検討**: 使用率 85%以上
 
+初期値は `packages/core/src/thresholds.ts` の `DEFAULT_THRESHOLDS`。管理画面(F-7-4)で
+変更すると D1 の `settings` に載り、その場で `routes.verdict` が付け替わる。
+勾配は**分数**で保存する(%へ丸めた値から戻すと 9.95% が 10% になり判定が変わる)。
+
 ### F-2 路線診断書(Must)
 
 | ID | 要件 |
@@ -352,6 +356,14 @@ CREATE TABLE bundles (
   is_current INTEGER NOT NULL DEFAULT 0
 );
 
+-- 管理画面から変えられる設定(F-7-4)。いまは判定しきい値だけ
+CREATE TABLE settings (
+  key TEXT PRIMARY KEY,           -- 'thresholds'
+  value TEXT NOT NULL,            -- JSON。読み出しのたびに値域を検証する
+  updated_at INTEGER NOT NULL,
+  updated_by TEXT                 -- 変更した管理者のメールアドレス
+);
+
 -- フィード管理(有効期限監視)
 CREATE TABLE feeds (
   id TEXT PRIMARY KEY,
@@ -539,8 +551,11 @@ wrangler d1 migrations apply regen-db --remote  # 本番適用
 4. ~~**GitHubリポジトリの作成**~~(完了)と**Actions用シークレット登録**: `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`
    - APIトークンはCloudflareダッシュボードの「My Profile → API Tokens」から、Workers・D1・R2の編集権限を付けて発行
    - **未登録**。`.github/workflows/batch.yml`(チケット08で作成)はこれが入るまで動かない
-5. **Better Authのシークレット生成と登録**: `npx wrangler secret put BETTER_AUTH_SECRET`
-6. **管理者アカウントの初期登録**(F-7の初回のみ)
+5. **管理画面のシークレット2つを登録**(チケット10で必要になった):
+   - `BETTER_AUTH_SECRET` — セッション署名鍵
+   - `ADMIN_SETUP_TOKEN` — 管理者の初回登録に要る合い言葉
+6. **管理者アカウントの初期登録**(F-7の初回のみ)。デプロイ後に `/admin/setup` で1人だけ登録する。
+   合い言葉と「管理者0人」の両方が揃わないと開かないので、先着で乗っ取られる窓が無い
 
 必要になったタイミングで、コマンドと画面の手順を都度お渡しします。
 

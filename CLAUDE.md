@@ -153,15 +153,15 @@ resample(25m) → fillNulls → smooth(175m) →
 
 ## 現状(2026-08-30)
 
-- 完了: 診断エンジンTS移植 + テスト(core 104件 / web 17件)、DBスキーマ、
-  企画書v0.2 / 要件定義v1.0 / DESIGN.md v1.0、**チケット00〜09**
+- 完了: 診断エンジンTS移植 + テスト(core 123件 / web 17件)、DBスキーマ、
+  企画書v0.2 / 要件定義v1.0 / DESIGN.md v1.0、**チケット00〜10**
   (00トークン / 01共通UI / 02 F-1マップ / 03 F-5一覧 / 04 F-2診断書 / 05 F-3車両比較 /
-  06 D1・R2・API / 07 F-6シナリオ共有 / 08 F-8データ更新バッチ / 09 F-4じぶん補正。
-  詳細は各チケット参照)
+  06 D1・R2・API / 07 F-6シナリオ共有 / 08 F-8データ更新バッチ / 09 F-4じぶん補正 /
+  10 F-7管理画面。詳細は各チケット参照)
 - **D1 `regen-db`(98dc019f-ee56-4e89-9ff5-4ad0062cf0dd)と R2 `regen-bundles` は作成・投入済み**
   (ローカル・本番とも)。要件§11-1〜3は完了。§11-4以降(GitHub Actionsのシークレット等)はチケット12
 - GitHub: https://github.com/hohoemi-rabo/regen (main直コミット・直push)
-- **次: チケット10(F-7 管理画面。Better Auth・車両マスタCRUD・バッチ状況)。** 以降は docs/tickets/README.md 参照
+- **次: チケット11(`/about` マニュアル兼)。** 以降は docs/tickets/README.md 参照
 - **本番D1/R2は新版 `20260818-c2bb49ee` に切替済み**(2026-08-30、GitHub Actionsの手動実行で公開)。
   要件§11-4のシークレットも登録済みで、週次(月曜05:00 JST)の自動実行が生きている。
   **ワークフローは Node 22。** pnpm 11 が Node 22.13以上を要求する(Node 20では setup で落ちる)
@@ -235,6 +235,28 @@ resample(25m) → fillNulls → smooth(175m) →
 - 診断書は本体が `_components/DiagnosisSheet.tsx`(Client)。**25m配列は渡さない**
   (補正の再計算はスカラーだけで足りる)。サーバーが返すHTMLは常に無補正で、
   localStorageを読んだあとに差し替える(ハイドレーション不一致を避ける)
+
+### 管理画面の作法(チケット10で確定)
+
+- **保護は二段。** middleware(`apps/web/middleware.ts`)がCookieの有無だけを見て 307 / 401 を返し、
+  **本当の検証は `requireAdmin()` / `requireAdminApi()`**(`lib/auth.ts`)が D1 を引いて行う。
+  middleware から `getCloudflareContext().env` は呼べないのでこの形になる。
+  **レイアウトの `redirect()` だけでは足りない** — ストリーミング開始後に投げられるため
+  HTTPとしては 200 + クライアント遷移になり、ブラウザ以外からは弾かれたように見えない
+- **保護される範囲はルートグループで決める。** `app/admin/(protected)/` の下は全部保護される。
+  パスを見て素通しする書き方にしない(条件を1つ間違えると保護が丸ごと外れる)。
+  `/admin/login` と `/admin/setup` はグループの外に置く
+- **公開の登録経路を持たない。** `/api/auth/sign-up/email` は catch-all で404にしてある。
+  管理者の初回登録は `/api/admin/setup` だけで、**管理者0人 かつ 合い言葉一致**の両方が要る
+- **better-auth の React クライアントを使わない。** ログインもログアウトも `fetch` で叩く。
+  公開画面のバンドルに認証ライブラリのコードを入れないため(受入条件)
+- **`betterAuth()` はモジュール定数にできない。** D1バインディングがリクエスト中にしか
+  取れないので `cache()` でリクエストごとに組む。secret も `process.env` ではなく env から読む
+- **判定しきい値(F-7-4)は D1 の `settings`。** 保存すると `routes.verdict` をその場で付け替える。
+  判定の定義をSQLに書き写さず、46行を読んで `judge()` で計算し直す。
+  **しきい値は `paramsSnapshot()` にも入っている** — 入れないと変えても版が変わらず、
+  更新検出の早期リターンで再計算されない。変更後の初回バッチは変化ガードで止まる(設計どおり)
+- **車両マスタの種は `ON CONFLICT DO NOTHING`。** 管理画面の編集を週次バッチが上書きしないため
 
 ### 公開の書き込み口(チケット07で確定)
 

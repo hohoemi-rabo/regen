@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { listRoutes } from "@/lib/data";
+import { getThresholds, listRoutes } from "@/lib/data";
 import { RouteListScreen, type RouteRow } from "./_components/RouteListScreen";
 
 export const metadata: Metadata = {
@@ -8,11 +8,15 @@ export const metadata: Metadata = {
     "南信州46路線のEV化診断値を一覧表示。判定・距離・勾配・電費・往復バッテリー使用率・日次電力量で並べ替え、CSVでダウンロードできます。",
 };
 
-/** 診断値はバッチ更新のとき以外変わらない */
-export const revalidate = 3600;
+/**
+ * 判定は管理画面(F-7-4)のしきい値変更で即座に変わる。ISRで持つと最大1時間古い判定が
+ * 出続けるので、この画面はリクエストごとに引く。D1の46行1クエリなので安い。
+ * (`revalidatePath` は OpenNext の R2 incremental cache を purge できなかった)
+ */
+export const dynamic = "force-dynamic";
 
 export default async function RoutesPage() {
-  const routes = await listRoutes();
+  const [routes, thresholds] = await Promise.all([listRoutes(), getThresholds()]);
   // 表示用の短い列名に詰め替える。gmaxは%表記・Lはkmが表の単位(D1は分数とメートル)
   const rows: RouteRow[] = routes.map((r) => ({
     id: r.id,
@@ -46,7 +50,7 @@ export default async function RoutesPage() {
         へ。
       </p>
       <div className="mt-5">
-        <RouteListScreen rows={rows} />
+        <RouteListScreen rows={rows} thresholds={thresholds} />
       </div>
     </main>
   );

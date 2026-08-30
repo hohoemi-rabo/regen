@@ -158,3 +158,97 @@ export function toVehicleParams(
     usableRatio: DEFAULT_EV.usableRatio,
   };
 }
+
+// ---------------------------------------------------------------------------
+// 管理画面からの書き込み(F-7-2)
+// ---------------------------------------------------------------------------
+
+export type VehicleNormalizeResult =
+  | { ok: true; value: Vehicle & { isPublic: boolean } }
+  | { ok: false; error: string };
+
+/** 現実的な値域。ここを緩めると診断が壊れた車両で回ってしまう */
+const VEHICLE_RANGES = {
+  massKg: [1000, 40000],
+  batteryKwh: [1, 1000],
+  eff: [0.1, 1],
+  cda: [0.5, 20],
+  crr: [0.001, 0.05],
+  fuelKmPerL: [0.1, 100],
+  money: [0, 1_000_000_000],
+} as const;
+
+const VEHICLE_ID_RE = /^[a-z0-9-]{1,40}$/;
+
+/**
+ * 管理画面が送ってきた車両1件を正規形に詰め替える(F-7-2)。
+ *
+ * `normalizeScenarioParams` と同じ作法。**受け取ったJSONをそのまま保存しない。**
+ * 認証済みの経路ではあるが、値域が壊れた車両は診断そのものを壊すので同じだけ検証する。
+ */
+export function normalizeVehicle(raw: unknown): VehicleNormalizeResult {
+  try {
+    if (typeof raw !== "object" || raw === null) throw new Error("車両がオブジェクトではありません");
+    const o = raw as Record<string, unknown>;
+
+    const str = (v: unknown, label: string, maxLen: number): string => {
+      if (typeof v !== "string") throw new Error(`${label} が文字列ではありません`);
+      const t = v.trim();
+      if (t === "") throw new Error(`${label} を入力してください`);
+      if (t.length > maxLen) throw new Error(`${label} が長すぎます(${maxLen}文字まで)`);
+      return t;
+    };
+    const num = (v: unknown, label: string, r: readonly [number, number]): number => {
+      if (typeof v !== "number" || !Number.isFinite(v)) throw new Error(`${label} が数値ではありません`);
+      if (v < r[0] || v > r[1]) throw new Error(`${label} は ${r[0]}〜${r[1]} の範囲で入力してください`);
+      return v;
+    };
+    const optNum = (v: unknown, label: string, r: readonly [number, number]): number | null =>
+      v === null || v === undefined || v === "" ? null : num(v, label, r);
+    const optStr = (v: unknown, label: string, maxLen: number): string | null =>
+      v === null || v === undefined || v === "" ? null : str(v, label, maxLen);
+
+    const id = str(o.id, "ID", 40);
+    if (!VEHICLE_ID_RE.test(id)) {
+      throw new Error("ID は英小文字・数字・ハイフンのみで指定してください");
+    }
+    if (o.powertrain !== "ev" && o.powertrain !== "diesel") {
+      throw new Error("動力は ev / diesel のいずれかです");
+    }
+    const powertrain: Powertrain = o.powertrain;
+
+    const url = optStr(o.sourceUrl, "出典URL", 500);
+    if (url !== null && !/^https?:\/\//.test(url)) {
+      throw new Error("出典URL は http(s) で始めてください");
+    }
+
+    const value = {
+      id,
+      name: str(o.name, "車種名", 100),
+      powertrain,
+      massKg: num(o.massKg, "車両総重量", VEHICLE_RANGES.massKg),
+      batteryKwh: optNum(o.batteryKwh, "電池容量", VEHICLE_RANGES.batteryKwh),
+      driveEff: optNum(o.driveEff, "駆動効率", VEHICLE_RANGES.eff),
+      regenEff: optNum(o.regenEff, "回生効率", VEHICLE_RANGES.eff),
+      cda: num(o.cda, "CdA", VEHICLE_RANGES.cda),
+      crr: num(o.crr, "転がり抵抗係数", VEHICLE_RANGES.crr),
+      fuelKmPerL: optNum(o.fuelKmPerL, "燃費", VEHICLE_RANGES.fuelKmPerL),
+      priceYen: optNum(o.priceYen, "車両価格", VEHICLE_RANGES.money),
+      subsidyYen: optNum(o.subsidyYen, "補助金", VEHICLE_RANGES.money),
+      sourceUrl: url,
+      note: optStr(o.note, "注記", 2000) ?? "",
+      isPublic: o.isPublic !== false,
+    };
+
+    // 動力ごとに要る値。欠けたまま保存すると比較画面で0除算やnull扱いが出る
+    if (value.powertrain === "ev" && value.batteryKwh === null) {
+      throw new Error("EVは電池容量が要ります");
+    }
+    if (value.powertrain === "diesel" && value.fuelKmPerL === null) {
+      throw new Error("ディーゼルは燃費(km/L)が要ります");
+    }
+    return { ok: true, value };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "車両を読み取れません" };
+  }
+}

@@ -22,6 +22,13 @@
       "when": 1788071710770,
       "tag": "0002_closed_stick",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1788074900877,
+      "tag": "0003_third_avengers",
+      "breakpoints": true
     }
   ]
 }

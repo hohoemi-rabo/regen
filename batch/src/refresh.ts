@@ -21,13 +21,12 @@ import {
   type RemoteFeed,
 } from "./feeds";
 import { buildBundle, writeArtifacts, type Bundle, type FeedRow } from "./pipeline";
-import { currentVersion, finishRun, publish, startRun, touchFeeds } from "./publish";
+import { currentVersion, finishRun, loadThresholds, publish, startRun, touchFeeds } from "./publish";
+import { FEED_EXPIRY_WARN_DAYS, daysUntil, isDefaultThresholds } from "@regen/core";
 import { diffSummary, formatDiff, hasChanges, loadBaseline } from "./verify";
 import type { CfTarget } from "./cf";
 
 const ROOT = join(process.cwd(), "..");
-/** これより先に期限が切れるフィードを警告する(F-8-5。表示側はチケット10) */
-const EXPIRY_WARN_DAYS = 60;
 
 const has = (f: string) => process.argv.includes(f);
 const opts = {
@@ -53,11 +52,12 @@ function committedRemote(): RemoteFeed[] | null {
   }));
 }
 
+/** F-8-5。しきい日数は管理画面(F-7-3)と同じ値を @regen/core から共有する */
 function warnExpiring(feeds: FeedRow[]): string[] {
-  const limit = new Date(Date.now() + EXPIRY_WARN_DAYS * 86400_000).toISOString().slice(0, 10);
   return feeds
-    .filter((f) => f.feedEnd && f.feedEnd <= limit)
-    .map((f) => `${f.id}(${f.feedEnd})`);
+    .map((f) => ({ f, days: daysUntil(f.feedEnd) }))
+    .filter((x) => x.days !== null && x.days <= FEED_EXPIRY_WARN_DAYS)
+    .map((x) => `${x.f.id}(${x.f.feedEnd} / 残り${x.days}日)`);
 }
 
 function bundleSize(b: Bundle): number {
@@ -86,7 +86,18 @@ async function main() {
     const fetched: RemoteFeed[] | null = opts.skipFetch ? null : await fetchFeedIndex(sources);
     // --skip-fetch のときは、直近の取得結果(コミット済み feeds.json)から同じ版を再現する
     const remote = fetched ?? committedRemote();
-    const version = remote ? computeVersion(remote) : null;
+
+    // 管理画面(F-7-4)のしきい値。版に含めるので、変えれば再計算が走る。
+    // --no-publish でも読む(読み取りだけ。D1が無い環境では既定値に落ちる)ので、
+    // オフライン確認と本番実行が同じしきい値で回る
+    const thresholds = loadThresholds(t);
+    if (!isDefaultThresholds(thresholds)) {
+      console.log(
+        `==> 判定しきい値が既定と異なります: 電池 ${thresholds.fitBattPct}%/${thresholds.condBattPct}% / ` +
+        `勾配 ${(thresholds.fitMaxGrade * 100).toFixed(1)}%`
+      );
+    }
+    const version = remote ? computeVersion(remote, thresholds) : null;
 
     if (version && !opts.noPublish && !opts.force) {
       const current = currentVersion(t);
@@ -112,7 +123,7 @@ async function main() {
     // ---- 3. 診断 -----------------------------------------------------------
     console.log("==> 診断を計算");
     const baseline = loadBaseline(ROOT);
-    const bundle = await buildBundle(ROOT, sources, remote ?? undefined);
+    const bundle = await buildBundle(ROOT, sources, remote ?? undefined, thresholds);
 
     // ---- 4. 変化ガード ------------------------------------------------------
     let changeNote = "";
@@ -149,7 +160,7 @@ async function main() {
           "--skip-fetch を外して一度取得してください"
         );
       }
-      const res = await publish(t, bundle, version, Date.now());
+      const res = await publish(t, bundle, version, Date.now(), thresholds);
       console.log(`==> 公開しました: 版 ${res.version} / R2 ${res.objects} オブジェクト / D1 ${res.statements} 文`);
     }
 

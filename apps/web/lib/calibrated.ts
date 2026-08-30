@@ -12,12 +12,15 @@
  */
 import {
   DEFAULT_EV,
+  DEFAULT_THRESHOLDS,
   auxKwhOf,
   calibratedKwh,
   extraCharges,
+  isDefaultThresholds,
   isIdentity,
   judge,
   type Calibration,
+  type Thresholds,
 } from "@regen/core";
 
 export interface RouteBase {
@@ -48,8 +51,17 @@ export interface RouteFigures {
   extraCharges: number;
 }
 
-export function calibrateRoute(base: RouteBase, calib: Calibration | null): RouteFigures {
-  if (isIdentity(calib)) {
+/**
+ * @param thresholds 判定しきい値(F-7-4)。既定と違えば判定を計算し直す。
+ *   一覧はD1の判定が管理画面の保存時に更新されるが、**マップはR2に焼かれた判定を読む**ので、
+ *   次のバッチまではここで計算し直さないと古い色が出る。
+ */
+export function calibrateRoute(
+  base: RouteBase,
+  calib: Calibration | null,
+  thresholds: Thresholds = DEFAULT_THRESHOLDS
+): RouteFigures {
+  if (isIdentity(calib) && isDefaultThresholds(thresholds)) {
     return {
       verdict: base.verdict,
       kwhPerKm: base.kwhPerKm,
@@ -60,7 +72,10 @@ export function calibrateRoute(base: RouteBase, calib: Calibration | null): Rout
   }
 
   const aux = auxKwhOf(base.winterKwh, base.tractionKwh, base.regenKwh);
-  const tripKwh = calibratedKwh(base.tractionKwh, base.regenKwh, aux, calib);
+  // 補正が無ければ電力量は動かない(丸めの差で数字がぶれないよう保存値を使う)
+  const tripKwh = isIdentity(calib)
+    ? base.winterKwh
+    : calibratedKwh(base.tractionKwh, base.regenKwh, aux, calib);
   const battPct = ((2 * tripKwh) / DEFAULT_EV.batteryKwh) * 100;
   const dailyKwh = tripKwh * base.tripsPerDay;
   return {
@@ -68,7 +83,7 @@ export function calibrateRoute(base: RouteBase, calib: Calibration | null): Rout
     roundtripBattPct: battPct,
     dailyKwh,
     extraCharges: extraCharges(dailyKwh, DEFAULT_EV),
-    // 判定は補正後の値で出し直す。勾配は地形なので補正の対象ではない
-    verdict: judge(battPct, base.maxGrade),
+    // 判定は補正後の値としきい値で出し直す。勾配は地形なので補正の対象ではない
+    verdict: judge(battPct, base.maxGrade, thresholds),
   };
 }

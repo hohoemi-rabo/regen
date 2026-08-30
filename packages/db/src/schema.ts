@@ -104,6 +104,19 @@ export const feeds = sqliteTable("feeds", {
   fetchedAt: integer("fetched_at"),
 });
 
+/**
+ * 管理画面から変えられる設定(F-7-4)。いまは判定しきい値だけが入る。
+ * value はJSON文字列。**読み出しのたびに packages/core の normalize を通す**
+ * (画面から書かれる値なので、型と値域をアプリ側で保証しない)。
+ */
+export const settings = sqliteTable("settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: integer("updated_at").notNull(),
+  /** 変更した管理者のメールアドレス。誰がしきい値を動かしたかを追えるようにする */
+  updatedBy: text("updated_by"),
+});
+
 // ---------------------------------------------------------------------------
 // Better Auth(管理画面F-7専用。一般利用者側には露出させない — CLAUDE.md #4)
 // 列は better-auth 1.7.2 の getAuthTables() の出力そのまま。

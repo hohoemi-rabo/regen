@@ -14,6 +14,7 @@ import {
   calibratedKwh,
   isIdentity,
   judge,
+  type Thresholds,
 } from "@regen/core";
 import { ConclusionBadge } from "@/app/_components/ConclusionBadge";
 import { StatTile, StatTileGrid } from "@/app/_components/StatTile";
@@ -37,11 +38,14 @@ export function DiagnosisSheet({
   row,
   profile,
   schedule,
+  thresholds,
 }: {
   id: string;
   row: SheetRow;
   profile: SheetProfile;
   schedule: SheetSchedule;
+  /** 判定しきい値(F-7-4)。管理画面で変えられる */
+  thresholds: Thresholds;
 }) {
   const calib = useActiveCalibration();
 
@@ -54,7 +58,7 @@ export function DiagnosisSheet({
   const tractionKwh = row.Etr * calib.kDrive;
   const regenKwh = row.regen * calib.kDrive;
   const battPct = ((2 * kwhWinter) / DEFAULT_EV.batteryKwh) * 100;
-  const verdict = judge(battPct, row.gmax / 100);
+  const verdict = judge(battPct, row.gmax / 100, thresholds);
   const kwhPerKm = kwhWinter / lengthKm;
   const dieselKmPerL = calib.kmPerL ?? PRICE.dieselKmPerL;
 
@@ -132,7 +136,7 @@ export function DiagnosisSheet({
               label="最急勾配(500m平均)"
               value={formatNumber(row.gmax, 1)}
               unit="%"
-              hint={row.gmax >= 10 ? "急勾配。判定を条件付き以上にする要因" : "連続勾配は緩やか"}
+              hint={row.gmax / 100 >= thresholds.fitMaxGrade ? "急勾配。判定を条件付き以上にする要因" : "連続勾配は緩やか"}
             />
             <StatTile label="電費(冬)" value={formatKwhPerKm(kwhPerKm)} unit="kWh/km" hint="暖房8kWを含む" />
             <StatTile

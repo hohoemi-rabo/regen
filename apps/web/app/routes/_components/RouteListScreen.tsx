@@ -9,6 +9,7 @@ import { FilterRow } from "@/app/_components/FilterRow";
 import { VerdictChip } from "@/app/_components/VerdictChip";
 import { isVerdict, VERDICTS, type Verdict } from "@/app/_components/verdict";
 import { formatInt, formatKm, formatKwhPerKm, formatNumber } from "@/lib/format";
+import type { Thresholds } from "@regen/core";
 import { calibrateRoute } from "@/lib/calibrated";
 import { useActiveCalibration } from "@/app/_components/calibration/CalibrationProvider";
 import { CalibrationBanner } from "@/app/_components/calibration/CalibrationBanner";
@@ -168,7 +169,7 @@ function csvEscape(v: string): string {
 
 const EMPTY = { agency: "", verdict: "", mode: "" };
 
-export function RouteListScreen({ rows }: { rows: RouteRow[] }) {
+export function RouteListScreen({ rows, thresholds }: { rows: RouteRow[]; thresholds: Thresholds }) {
   const router = useRouter();
   const [filters, setFilters] = useState<Record<string, string>>(EMPTY);
   const [sort, setSort] = useState<SortState>({ key: "daily", dir: "desc" });
@@ -194,7 +195,8 @@ export function RouteListScreen({ rows }: { rows: RouteRow[] }) {
             tripsPerDay: r.trips,
             maxGrade: r.mg,
           },
-          calib
+          calib,
+          thresholds
         );
         return {
           ...r,
@@ -205,7 +207,7 @@ export function RouteListScreen({ rows }: { rows: RouteRow[] }) {
           verdict: f.verdict,
         };
       }),
-    [rows, calib]
+    [rows, calib, thresholds]
   );
 
   const visible = useMemo(() => {

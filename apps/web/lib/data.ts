@@ -2,9 +2,12 @@ import "server-only";
 
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { drizzle } from "drizzle-orm/d1";
-import { and, asc, eq } from "drizzle-orm";
-import { agencies, bundles, feeds, routes, scenarios, vehicles } from "@regen/db";
-import { generateScenarioId, type ScenarioParams } from "@regen/core";
+import { and, asc, desc, eq } from "drizzle-orm";
+import { agencies, batchRuns, bundles, feeds, routes, scenarios, settings, vehicles } from "@regen/db";
+import {
+  DEFAULT_THRESHOLDS, generateScenarioId, judge, normalizeThresholds,
+  type ScenarioParams, type Thresholds, type Vehicle,
+} from "@regen/core";
 
 /**
  * D1 / R2 への唯一の入口。
@@ -222,4 +225,97 @@ export async function checkRateLimit(key: string): Promise<boolean> {
   if (!limiter) return true; // バインディング未設定の環境では素通し
   const { success } = await limiter.limit({ key });
   return success;
+}
+
+// ---------------------------------------------------------------------------
+// 管理画面(F-7)。requireAdmin / requireAdminApi を通った先でのみ呼ぶ
+// ---------------------------------------------------------------------------
+
+/** バッチ実行履歴(F-7-3)。新しい順 */
+export async function listBatchRuns(limit = 20) {
+  return (await db()).select().from(batchRuns).orderBy(desc(batchRuns.id)).limit(limit);
+}
+
+/** 車両マスタ全件。**非公開行も返す**(管理画面専用) */
+export async function listAllVehicles() {
+  return (await db()).select().from(vehicles).orderBy(asc(vehicles.id));
+}
+
+export type VehicleInput = Vehicle & { isPublic: boolean };
+
+/** 追加または更新(F-7-2)。normalizeVehicle を通した値だけを渡すこと */
+export async function upsertVehicle(v: VehicleInput): Promise<void> {
+  const row = {
+    id: v.id, name: v.name, powertrain: v.powertrain, massKg: v.massKg,
+    batteryKwh: v.batteryKwh, driveEff: v.driveEff, regenEff: v.regenEff,
+    cda: v.cda, crr: v.crr, fuelKmPerL: v.fuelKmPerL, priceYen: v.priceYen,
+    subsidyYen: v.subsidyYen, sourceUrl: v.sourceUrl, note: v.note,
+    isPublic: v.isPublic ? 1 : 0,
+  };
+  await (await db()).insert(vehicles).values(row).onConflictDoUpdate({ target: vehicles.id, set: row });
+}
+
+const THRESHOLDS_KEY = "thresholds";
+
+/**
+ * 判定しきい値(F-7-4)。未設定・壊れていれば要件§5の初期値。
+ * **保存値は画面から書かれるので、読み出しのたびに normalize を通す。**
+ */
+export async function getThresholds(): Promise<Thresholds> {
+  const rows = await (await db())
+    .select().from(settings).where(eq(settings.key, THRESHOLDS_KEY)).limit(1);
+  if (!rows[0]) return DEFAULT_THRESHOLDS;
+  try {
+    return normalizeThresholds(JSON.parse(rows[0].value)) ?? DEFAULT_THRESHOLDS;
+  } catch {
+    return DEFAULT_THRESHOLDS;
+  }
+}
+
+async function verdictInputs() {
+  return (await db())
+    .select({
+      id: routes.id,
+      batt: routes.roundtripBattPct,
+      grade: routes.maxGrade,
+      verdict: routes.verdict,
+    })
+    .from(routes);
+}
+
+/** しきい値に合わせて routes.verdict を書き直す。変えた行数を返す */
+async function applyVerdicts(th: Thresholds): Promise<number> {
+  const d = await db();
+  const rows = await verdictInputs();
+  let changed = 0;
+  for (const r of rows) {
+    // max_grade は**分数**。%へ丸めた値から戻さない(9.95%が10%になると判定が変わる)
+    const next = judge(r.batt, r.grade, th);
+    if (next === r.verdict) continue;
+    await d.update(routes).set({ verdict: next }).where(eq(routes.id, r.id));
+    changed++;
+  }
+  return changed;
+}
+
+/** 保存せずに「何路線の判定が変わるか」だけ数える(保存前の確認に使う) */
+export async function countVerdictChanges(th: Thresholds): Promise<number> {
+  const rows = await verdictInputs();
+  return rows.filter((r) => judge(r.batt, r.grade, th) !== r.verdict).length;
+}
+
+/**
+ * しきい値を保存し、**その場でD1の判定を付け替える**(即時反映)。
+ * 判定の定義を SQL に書き写さず、46行を読んで judge() で計算し直す
+ * (定義が2か所にあると、片方だけ直したときに黙ってずれる)。
+ * @returns 判定が変わった路線数
+ */
+export async function saveThresholds(th: Thresholds, updatedBy: string | null): Promise<number> {
+  const value = JSON.stringify(th);
+  const now = Date.now();
+  await (await db())
+    .insert(settings)
+    .values({ key: THRESHOLDS_KEY, value, updatedAt: now, updatedBy })
+    .onConflictDoUpdate({ target: settings.key, set: { value, updatedAt: now, updatedBy } });
+  return applyVerdicts(th);
 }

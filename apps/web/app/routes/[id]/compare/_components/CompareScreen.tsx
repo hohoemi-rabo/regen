@@ -13,6 +13,7 @@ import {
   tcoSeries,
   type ScenarioParams,
   type SimInput,
+  type Thresholds,
   type Vehicle,
 } from "@regen/core";
 import { ShareButton } from "./ShareButton";
@@ -20,7 +21,7 @@ import { useActiveCalibration } from "@/app/_components/calibration/CalibrationP
 import { CalibrationBanner } from "@/app/_components/calibration/CalibrationBanner";
 import { formatInt, formatKm, formatNumber } from "@/lib/format";
 import { Bar, DefinitionRow, Section } from "../../_components/sections";
-import { NumberField } from "./NumberField";
+import { NumberField } from "@/app/_components/NumberField";
 import { Slider } from "./Slider";
 import { TcoChart } from "./TcoChart";
 import { VehicleColumn } from "./VehicleColumn";
@@ -54,6 +55,7 @@ export function CompareScreen({
   repTrips,
   totalTrips,
   arrivals,
+  thresholds,
 }: {
   routeId: string;
   routeName: string;
@@ -72,6 +74,8 @@ export function CompareScreen({
   repTrips: number;
   totalTrips: number;
   arrivals: string[];
+  /** 判定しきい値(F-7-4) */
+  thresholds: Thresholds;
 }) {
   // 既定は「診断書と同じ前提の基準車」×「ディーゼル」。無ければ先頭2件
   const initialA = vehicles.find((v) => v.id === "standard-ev") ?? vehicles[0];
@@ -95,7 +99,7 @@ export function CompareScreen({
   const sim = useMemo(() => {
     const t0 = performance.now();
     const input: SimInput = {
-      elev: elev25, lengthM, gmax, tripsPerDay, arrivals, auxW, yenPerKwh, yenPerLiterDiesel, calib,
+      elev: elev25, lengthM, gmax, tripsPerDay, arrivals, auxW, yenPerKwh, yenPerLiterDiesel, calib, thresholds,
     };
     const ra = simulateVehicle(vehA, { massKg: a.massKg, batteryKwh: a.batteryKwh }, input);
     const rb = simulateVehicle(vehB, { massKg: b.massKg, batteryKwh: b.batteryKwh }, input);
@@ -247,24 +251,24 @@ export function CompareScreen({
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <NumberField
               label={`車両価格 A(${vehA.name})`} value={a.priceYen} unit="円" step={100000}
-              onChange={(v) => setA((s) => ({ ...s, priceYen: v }))}
+              onChange={(v) => setA((s) => ({ ...s, priceYen: v ?? 0 }))}
             />
             <NumberField
               label="補助金 A" value={a.subsidyYen} unit="円" step={100000}
-              onChange={(v) => setA((s) => ({ ...s, subsidyYen: v }))}
+              onChange={(v) => setA((s) => ({ ...s, subsidyYen: v ?? 0 }))}
             />
             <NumberField
               label={`車両価格 B(${vehB.name})`} value={b.priceYen} unit="円" step={100000}
-              onChange={(v) => setB((s) => ({ ...s, priceYen: v }))}
+              onChange={(v) => setB((s) => ({ ...s, priceYen: v ?? 0 }))}
             />
             <NumberField
               label="補助金 B" value={b.subsidyYen} unit="円" step={100000}
-              onChange={(v) => setB((s) => ({ ...s, subsidyYen: v }))}
+              onChange={(v) => setB((s) => ({ ...s, subsidyYen: v ?? 0 }))}
             />
             <NumberField
               label="年間運行日数" value={annualDays} unit="日" min={1} max={365}
               hint={`年間走行距離 ${formatInt(annualKm)} km`}
-              onChange={setAnnualDays}
+              onChange={(v) => setAnnualDays(v ?? 1)}
             />
           </div>
 

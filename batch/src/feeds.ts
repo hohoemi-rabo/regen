@@ -15,6 +15,7 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync
 import { join } from "node:path";
 import { unzipSync } from "fflate";
 import { paramsSnapshot } from "./snapshot";
+import type { Thresholds } from "@regen/core";
 
 const API = "https://api.gtfs-data.jp/v2/files";
 
@@ -67,12 +68,12 @@ export async function fetchFeedIndex(sources: FeedSource[]): Promise<RemoteFeed[
  * 版を入力から導出する。同一入力なら同一版になり、再実行は冪等な上書きになる
  * (受入条件「再実行しても同一入力なら同一出力」)。
  */
-export function computeVersion(feeds: RemoteFeed[]): string {
+export function computeVersion(feeds: RemoteFeed[], thresholds?: Thresholds): string {
   const published = feeds.map((f) => f.publishedAt).sort();
   const date = published[published.length - 1].slice(0, 10).replace(/-/g, "");
   const material = JSON.stringify({
     feeds: [...feeds].sort((a, b) => a.id.localeCompare(b.id)).map((f) => [f.id, f.fileUid]),
-    params: paramsSnapshot(),
+    params: paramsSnapshot(thresholds),
   });
   const hash = createHash("sha256").update(material).digest("hex").slice(0, 8);
   return `${date}-${hash}`;

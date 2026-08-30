@@ -6,6 +6,7 @@ import { fillNulls, smooth } from "./profile";
 import { slopeLimit, anchorInterp } from "./correction";
 import { energyForProfile } from "./energy";
 import { extraCharges } from "./charging";
+import { DEFAULT_THRESHOLDS, type Thresholds } from "./thresholds";
 
 export type AccuracyMode = "A" | "B";
 export type Verdict = "適" | "条件付き" | "要検討";
@@ -46,14 +47,23 @@ export interface Diagnosis {
   elev: number[];
 }
 
-export function judge(battPct: number, gmax: number): Verdict {
-  if (battPct < 60 && gmax < 0.1) return "適";
-  if (battPct < 85) return "条件付き";
+/**
+ * 判定(要件§5)。しきい値は管理画面から変えられる(F-7-4)。
+ * **gmax は分数**(0.106 = 10.6%)。%へ丸めた値から戻して渡さない。
+ * 既定値を省略したときの結果は移植時から一切変わらない(ゴールデンテストが担保)。
+ */
+export function judge(battPct: number, gmax: number, th: Thresholds = DEFAULT_THRESHOLDS): Verdict {
+  if (battPct < th.fitBattPct && gmax < th.fitMaxGrade) return "適";
+  if (battPct < th.condBattPct) return "条件付き";
   return "要検討";
 }
 
 /** 診断本体(要件定義書 §9.1 の処理順序。Python版 diagnose.py と同一結果を保証: ゴールデンテスト参照) */
-export function diagnose(input: DiagnoseInput, veh: VehicleParams = DEFAULT_EV): Diagnosis {
+export function diagnose(
+  input: DiagnoseInput,
+  veh: VehicleParams = DEFAULT_EV,
+  th: Thresholds = DEFAULT_THRESHOLDS
+): Diagnosis {
   const raw = fillNulls(input.elev.slice());
   let e = smooth(raw, SMOOTH_W);
   let correctedIdx: number[] = [];
@@ -100,7 +110,7 @@ export function diagnose(input: DiagnoseInput, veh: VehicleParams = DEFAULT_EV):
     extraCharges: extraCharges(dailyKwh, veh),
     correctedM: correctedIdx.length * STEP,
     correctedIdx,
-    verdict: judge(battPct, gmax),
+    verdict: judge(battPct, gmax, th),
     elev: e,
   };
 }

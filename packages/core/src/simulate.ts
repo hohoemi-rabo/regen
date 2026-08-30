@@ -4,6 +4,7 @@ import { ChargingStop, chargingPlan } from "./charging";
 import { judge, Verdict } from "./diagnose";
 import { Powertrain, Vehicle, toVehicleParams } from "./vehicles";
 import { auxKwhOf, calibratedKwh, type Calibration } from "./calibration";
+import { DEFAULT_THRESHOLDS, type Thresholds } from "./thresholds";
 
 /**
  * F-3車両比較の再計算(ブラウザ内で実行される)。
@@ -32,6 +33,8 @@ export interface SimInput {
    * ブラウザのローカル保存にとどまる値なので、サーバー側の事前計算には入れない。
    */
   calib?: Calibration | null;
+  /** 判定しきい値(F-7-4)。省略すると要件§5の初期値 */
+  thresholds?: Thresholds | null;
 }
 
 export interface SimResult {
@@ -109,7 +112,7 @@ export function simulateVehicle(
     tractionKwh: e.tractionKwh,
     regenKwh: e.regenKwh,
     roundtripBattPct: battPct,
-    verdict: judge(battPct, input.gmax),
+    verdict: judge(battPct, input.gmax, input.thresholds ?? DEFAULT_THRESHOLDS),
     dayKwh,
     extraCharges: plan ? plan.stops.length : null,
     stops: plan ? plan.stops : [],

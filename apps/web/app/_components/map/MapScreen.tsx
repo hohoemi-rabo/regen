@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { FilterRow } from "@/app/_components/FilterRow";
 import type { Verdict } from "@/app/_components/verdict";
 import { VERDICTS } from "@/app/_components/verdict";
-import { isIdentity } from "@regen/core";
+import { isDefaultThresholds, isIdentity, type Thresholds } from "@regen/core";
 import { calibrateRoute } from "@/lib/calibrated";
 import { useActiveCalibration } from "@/app/_components/calibration/CalibrationProvider";
 import { CalibrationBanner } from "@/app/_components/calibration/CalibrationBanner";
@@ -30,7 +30,7 @@ const ACCURACY_LABELS: Record<string, string> = {
   B: "B(停留所近似)",
 };
 
-export function MapScreen() {
+export function MapScreen({ thresholds }: { thresholds: Thresholds }) {
   const [data, setData] = useState<RouteCollection | null>(null);
   const [loadError, setLoadError] = useState<Error | null>(null);
   const [filters, setFilters] = useState<MapFilters>(EMPTY_FILTERS);
@@ -73,7 +73,7 @@ export function MapScreen() {
    * 参照が変わらず MapLibre のソース更新も起きない。
    */
   const shown = useMemo(() => {
-    if (!data || isIdentity(calib)) return data;
+    if (!data || (isIdentity(calib) && isDefaultThresholds(thresholds))) return data;
     return {
       ...data,
       features: data.features.map((f) => {
@@ -92,7 +92,8 @@ export function MapScreen() {
             tripsPerDay: p.trips,
             maxGrade: p.mg,
           },
-          calib
+          calib,
+          thresholds
         );
         return {
           ...f,
@@ -105,7 +106,7 @@ export function MapScreen() {
         };
       }),
     } satisfies RouteCollection;
-  }, [data, calib]);
+  }, [data, calib, thresholds]);
 
   const agencies = useMemo(() => {
     if (!shown) return [];

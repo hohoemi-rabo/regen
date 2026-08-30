@@ -7,15 +7,21 @@
  */
 import {
   STEP, MAX_GRADE, SMOOTH_W, GRADE_WIN, DEFAULT_EV, SUMMER_AUX_W, WINTER_AUX_W,
+  DEFAULT_THRESHOLDS, type Thresholds,
 } from "@regen/core";
 
 /**
  * パイプライン自体の版。
  * パラメータは同じでも成果物の作り方(間引き・丸め・収録項目)を変えたときに上げる。
  */
-export const PIPELINE_REV = 3;
+export const PIPELINE_REV = 4;
 
-export function paramsSnapshot() {
+/**
+ * @param thresholds 管理画面で変えられる判定しきい値(F-7-4)。
+ *   **版に含める。** 含めないと、しきい値を変えても版が変わらず、更新検出の
+ *   早期リターンで再計算されないまま古い判定が配信され続ける。
+ */
+export function paramsSnapshot(thresholds: Thresholds = DEFAULT_THRESHOLDS) {
   return {
     pipelineRev: PIPELINE_REV,
     step: STEP,
@@ -25,5 +31,6 @@ export function paramsSnapshot() {
     summerAuxW: SUMMER_AUX_W,
     winterAuxW: WINTER_AUX_W,
     vehicle: DEFAULT_EV,
+    thresholds,
   };
 }

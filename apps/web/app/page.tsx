@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { getThresholds } from "@/lib/data";
 import { MapScreen } from "./_components/map/MapScreen";
 
 export const metadata: Metadata = {
@@ -11,6 +12,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function Home() {
-  return <MapScreen />;
+/** 判定しきい値(F-7-4)をD1から読んで渡す。マップの色はR2の焼き込みではなくこれで決まる */
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  return <MapScreen thresholds={await getThresholds()} />;
 }
