@@ -222,6 +222,8 @@ resample(25m) → fillNulls → smooth(175m) →
   kill漏れ(WSLでは `lsof -ti` が効かないので `ss -tlnp` からPIDを取る)はすべて画面が壊れる
 - ヘッドレス確認: `~/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell`。
   MapLibreには `--enable-unsafe-swiftshader --use-gl=angle --use-angle=swiftshader` が必須。
+  ただし**MapLibreの描画内容はヘッドレスでは撮れない**(`preserveDrawingBuffer: false` のため
+  canvasが白く写る)。地図の見た目はブラウザで確認してもらう。
   印刷は `--print-to-pdf` → `pdftoppm -png` で目視。コンソールエラーは `--enable-logging=stderr --log-level=0`
 - 診断書の印刷はA4縦1枚が原則(46路線中39路線が1枚、補正・充電の多い7路線は2枚で許容済み)
 
