@@ -251,6 +251,9 @@ resample(25m) → fillNulls → smooth(175m) →
   9.95% を 10% に丸めると判定が変わる(D1の `max_grade` とマップの `mg` は分数のまま入れてある)
 - **`/s/[id]` 共有シナリオには補正を当てない。** 保存時の値を凍結する記録なので、
   閲覧者のローカル設定で数字が動いてはいけない(F-6の存在意義)
+- **再計算する `useMemo` の依存に `calib` を必ず入れる。** 補正は初回レンダーでは `null` で、
+  `useEffect` が localStorage を読んだあとに入る。依存から漏らすと**永久に反映されない**
+  (F-3車両比較で実際に起きた。ESLintの `react-hooks/exhaustive-deps` が見つけた)
 - 診断書は本体が `_components/DiagnosisSheet.tsx`(Client)。**25m配列は渡さない**
   (補正の再計算はスカラーだけで足りる)。サーバーが返すHTMLは常に無補正で、
   localStorageを読んだあとに差し替える(ハイドレーション不一致を避ける)
@@ -301,9 +304,14 @@ resample(25m) → fillNulls → smooth(175m) →
 - **`deploy` の concurrency は `cancel-in-progress: false`。** 途中で切ると
   R2/D1とWorkerの版がずれる
 - **`.next` / `.open-next` をキャッシュしない。** 残したままの再ビルドは避ける(検証の作法と同じ)
+- **デプロイの最後に本番への疎通確認が入っている**(10本。`/admin` だけ307を期待)。
+  落ちればワークフローが赤くなるので、壊れたまま気づかず放置しない。消さないこと
 - ESLintの対象は `apps/web` だけ。`packages/core` はゴールデンテスト123件、`batch` は
   `tsc --strict` で守られている。**警告も落とす**(`--max-warnings=0`)ので、
   `react-hooks/exhaustive-deps` のような警告レベルの規則が溜まらない
+- **`eslint` は `^9` に固定。`eslint-config-next` は Next と同じ 15.5.24。**
+  `eslint-config-next` の peer は `^7 || ^8 || ^9` で、最新の `eslint@10` は対象外。
+  上げると設定が読めなくなる(「絶対に守ること」#1 と同じ理由)
 
 ### 読み物ページ `/about` の作法(チケット11で確定)
 
@@ -386,6 +394,17 @@ resample(25m) → fillNulls → smooth(175m) →
 - 診断書の印刷はA4縦1枚が原則(46路線中39路線が1枚、補正・充電の多い7路線は2枚で許容済み。
   この39/7は `--virtual-time-budget` を付けて測った値。付けずに測ると run ごとにぶれる)。
   共有シナリオ(F-6)もA4縦1枚に収まる
+- **管理画面(F-7)はローカルで通しに確認できる。** 本番の資格情報は使わない。
+  ローカルD1の `user` が0人なら `/api/admin/setup` に `.dev.vars` の `ADMIN_SETUP_TOKEN` を
+  添えてPOSTすれば使い捨ての管理者を作れる。**確認が済んだら
+  `delete from session; delete from account; delete from user;` で消す**
+  (残すとローカルの `/admin/setup` が閉じて次回困る)。
+  **ログイン・ログアウトは実ブラウザで確かめる** — `fetch` が何を送るかが焦点になる不具合
+  (415でCookieが消えない等)は curl では再現できない
+- **CI/デプロイを触ったら、クリーンクローンで通しに確かめる。** これがCIと同一の条件:
+  `git clone <repo> /tmp/x && cd /tmp/x && pnpm install --frozen-lockfile && pnpm typecheck &&
+  pnpm lint && pnpm test && pnpm seed:local && pnpm --filter web exec opennextjs-cloudflare build`。
+  シード後のD1が本番と一致するかは `wrangler d1 execute regen-db --remote` の結果と突き合わせる
 
 ## データ
 
@@ -398,8 +417,10 @@ resample(25m) → fillNulls → smooth(175m) →
   `bundles/<version>/profile/<route_id>.json`(1路線の全て)/ `bundles/<version>/meta.json`。
   配信する版は D1 `bundles.is_current` だけで切り替える(旧版のキーは消さない)
 - `data/bundle/` — **バッチの出力はすべてここ**(map.geojson / routes_summary / profiles /
-  profiles25 / schedules / agencies / feeds)。次回の変化ガードの基準でもあるので、
-  **公開に成功した内容と一致している**ことが前提
+  profiles25 / schedules / agencies / feeds / **d1.json**)。次回の変化ガードの基準でもあるので、
+  **公開に成功した内容と一致している**ことが前提。
+  `d1.json` は `pnpm seed:local` がローカルD1/R2を作り直すための入力(版・時刻・しきい値と
+  lengthM / maxGrade / feedOf)
 - `data/feeds.source.json` — 診断対象フィードの正本(手で管理。gtfs-data.jp のIDとの対応表)
 - GTFS原本は `data/gtfs_zips/`(バッチが取得して更新)。展開先 `data/gtfs/` はgitignore。
   フィード更新日に注意(喬木村は2026-12-15期限)
