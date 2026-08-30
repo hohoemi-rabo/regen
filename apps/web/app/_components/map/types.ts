@@ -1,7 +1,7 @@
 import type { Feature, FeatureCollection, LineString } from "geojson";
 import type { Verdict } from "@/app/_components/verdict";
 
-/** public/map_data.json のFeature properties(batch/src/seed-map.ts が生成) */
+/** R2 `bundles/<version>/routes.json` のFeature properties(batch/src/seed-map.ts が生成) */
 export type RouteProps = {
   id: string;
   name: string;

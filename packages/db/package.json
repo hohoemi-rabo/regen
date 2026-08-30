@@ -9,10 +9,15 @@
     "generate": "drizzle-kit generate"
   },
   "dependencies": {
+    "better-auth": "^1.7.2",
     "drizzle-orm": "^0.45.0"
   },
   "devDependencies": {
     "drizzle-kit": "^0.31.0",
     "typescript": "^5.6.0"
+  },
+  "exports": {
+    ".": "./src/schema.ts",
+    "./schema": "./src/schema.ts"
   }
 }

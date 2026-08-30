@@ -1,4 +1,4 @@
-import summary from "@/data/routes_summary.json";
+import { listRoutes, type RouteRecord } from "@/lib/data";
 import { Button } from "@/app/_components/Button";
 import { ConclusionBadge } from "@/app/_components/ConclusionBadge";
 import { DataTable, type Column } from "@/app/_components/DataTable";
@@ -10,7 +10,7 @@ import { FilterRowDemo } from "./FilterRowDemo";
 
 /** 共通UIコンポーネントの確認用ページ(チケット01)。リリース前に削除可。 */
 
-type Row = (typeof summary)[number];
+type Row = RouteRecord;
 
 const columns: Column<Row>[] = [
   {
@@ -20,13 +20,13 @@ const columns: Column<Row>[] = [
   },
   { key: "name", header: "路線", render: (r) => <span className="font-semibold">{r.name}</span> },
   { key: "agency", header: "事業者", render: (r) => <span className="text-ink-2">{r.agency}</span> },
-  { key: "L", header: "km", align: "right", render: (r) => formatKm(r.L) },
-  { key: "kwh", header: "電費 kWh/km", align: "right", render: (r) => formatKwhPerKm(r.kwh) },
-  { key: "daily", header: "日次kWh", align: "right", render: (r) => formatInt(r.daily) },
+  { key: "L", header: "km", align: "right", render: (r) => formatKm(r.lengthM / 1000) },
+  { key: "kwh", header: "電費 kWh/km", align: "right", render: (r) => formatKwhPerKm(r.kwhPerKm) },
+  { key: "daily", header: "日次kWh", align: "right", render: (r) => formatInt(r.dailyKwh) },
 ];
 
-export default function ComponentsPage() {
-  const rows = [...summary].sort((a, b) => b.daily - a.daily).slice(0, 5);
+export default async function ComponentsPage() {
+  const rows = (await listRoutes()).sort((a, b) => b.dailyKwh - a.dailyKwh).slice(0, 5);
   return (
     <main className="mx-auto w-full max-w-[900px] space-y-card-gap px-4 py-10">
       <h1 className="text-page-title">共通UIコンポーネント確認</h1>

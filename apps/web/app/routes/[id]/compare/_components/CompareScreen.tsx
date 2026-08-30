@@ -6,14 +6,13 @@ import {
   CO2,
   DEFAULT_EV,
   SUMMER_AUX_W,
-  VEHICLES,
   WINTER_AUX_W,
   breakEvenYear,
   cruiseSpeedKmh,
-  findVehicle,
   simulateVehicle,
   tcoSeries,
   type SimInput,
+  type Vehicle,
 } from "@regen/core";
 import { Button } from "@/app/_components/Button";
 import { formatInt, formatKm, formatNumber } from "@/lib/format";
@@ -29,8 +28,7 @@ const TCO_YEARS = 15;
 const DEFAULT_ANNUAL_DAYS = 250;
 
 /** 車種を選び直したときに、その車種の値へ戻す項目 */
-function defaultsOf(id: string) {
-  const v = findVehicle(id)!;
+function defaultsOf(v: Vehicle) {
   return {
     massKg: v.massKg,
     batteryKwh: v.batteryKwh ?? DEFAULT_EV.batteryKwh,
@@ -43,6 +41,7 @@ export function CompareScreen({
   routeId,
   routeName,
   agency,
+  vehicles,
   elev25,
   lengthM,
   gmax,
@@ -55,6 +54,8 @@ export function CompareScreen({
   routeId: string;
   routeName: string;
   agency: string;
+  /** 車両マスタ。D1が正本で、サーバーから渡ってくる(チケット06) */
+  vehicles: Vehicle[];
   /** 25m間隔の補正後標高。診断書と同じ数値を再現できる唯一の入力 */
   elev25: number[];
   lengthM: number;
@@ -66,17 +67,20 @@ export function CompareScreen({
   totalTrips: number;
   arrivals: string[];
 }) {
-  const [aId, setAId] = useState("standard-ev");
-  const [bId, setBId] = useState("hino-poncho");
-  const [a, setA] = useState(() => defaultsOf("standard-ev"));
-  const [b, setB] = useState(() => defaultsOf("hino-poncho"));
+  // 既定は「診断書と同じ前提の基準車」×「ディーゼル」。無ければ先頭2件
+  const initialA = vehicles.find((v) => v.id === "standard-ev") ?? vehicles[0];
+  const initialB = vehicles.find((v) => v.powertrain === "diesel") ?? vehicles[1] ?? vehicles[0];
+  const [aId, setAId] = useState(initialA.id);
+  const [bId, setBId] = useState(initialB.id);
+  const [a, setA] = useState(() => defaultsOf(initialA));
+  const [b, setB] = useState(() => defaultsOf(initialB));
   const [auxW, setAuxW] = useState(WINTER_AUX_W);
   const [yenPerKwh, setYenPerKwh] = useState(30);
   const [yenPerLiterDiesel, setYenPerLiterDiesel] = useState(165);
   const [annualDays, setAnnualDays] = useState(DEFAULT_ANNUAL_DAYS);
 
-  const vehA = findVehicle(aId)!;
-  const vehB = findVehicle(bId)!;
+  const vehA = vehicles.find((v) => v.id === aId) ?? initialA;
+  const vehB = vehicles.find((v) => v.id === bId) ?? initialB;
   const lengthKm = lengthM / 1000;
 
   const sim = useMemo(() => {
@@ -121,8 +125,9 @@ export function CompareScreen({
       : `車両B のほうが ▼ ${v} ${unit} ${dearer}`;
   };
 
-  const pickA = (id: string) => { setAId(id); setA(defaultsOf(id)); };
-  const pickB = (id: string) => { setBId(id); setB(defaultsOf(id)); };
+  const pick = (id: string) => vehicles.find((v) => v.id === id) ?? initialA;
+  const pickA = (id: string) => { setAId(id); setA(defaultsOf(pick(id))); };
+  const pickB = (id: string) => { setBId(id); setB(defaultsOf(pick(id))); };
 
   return (
     <main className="mx-auto w-full max-w-[1200px] px-4 py-8">
@@ -168,14 +173,14 @@ export function CompareScreen({
 
         <div className="grid gap-card-gap md:grid-cols-2">
           <VehicleColumn
-            side="A" vehicle={vehA} massKg={a.massKg} batteryKwh={a.batteryKwh}
+            side="A" vehicles={vehicles} vehicle={vehA} massKg={a.massKg} batteryKwh={a.batteryKwh}
             result={ra} repDayLabel={repDayLabel}
             onVehicleChange={pickA}
             onMassChange={(v) => setA((s) => ({ ...s, massKg: v }))}
             onBatteryChange={(v) => setA((s) => ({ ...s, batteryKwh: v }))}
           />
           <VehicleColumn
-            side="B" vehicle={vehB} massKg={b.massKg} batteryKwh={b.batteryKwh}
+            side="B" vehicles={vehicles} vehicle={vehB} massKg={b.massKg} batteryKwh={b.batteryKwh}
             result={rb} repDayLabel={repDayLabel}
             onVehicleChange={pickB}
             onMassChange={(v) => setB((s) => ({ ...s, massKg: v }))}
@@ -293,7 +298,7 @@ export function CompareScreen({
 
           <p className="mt-4 text-aux font-semibold text-ink-2">車両マスタの出典</p>
           <dl className="mt-1">
-            {VEHICLES.map((v) => (
+            {vehicles.map((v) => (
               <div key={v.id} className="border-b border-grid py-2 last:border-b-0">
                 <dt className="text-aux font-semibold">
                   {v.name}

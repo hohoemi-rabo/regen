@@ -66,7 +66,7 @@
 | SQLを書く | supabase-js のクエリビルダ | **Drizzle**(TypeScriptでスキーマを定義し、型付きでクエリを書く) |
 | マイグレーション | Supabase CLI / ダッシュボード | `drizzle-kit generate` でSQLを生成 → `wrangler d1 migrations apply` で適用 |
 | 認証 | Supabase Auth | **Better Auth**(セッションはD1に保存)。管理画面だけに使う |
-| ファイル保管 | Supabase Storage | **R2**(S3互換。`env.BUCKET.get()/put()` で読み書き) |
+| ファイル保管 | Supabase Storage | **R2**(S3互換。`env.BUNDLES.get()/put()` で読み書き) |
 | ホスティング | Vercel等 | **Cloudflare Workers**(OpenNextがNext.jsをWorkers用に変換する) |
 
 要点は「**接続文字列ではなくバインディング**」という点。ローカル開発では `wrangler` がD1/R2をローカルにエミュレートするので、開発中に本番DBを触ることはない。
@@ -315,6 +315,7 @@ CREATE TABLE vehicles (
   price_yen INTEGER,
   subsidy_yen INTEGER,
   source_url TEXT,
+  note TEXT,                      -- 非公表値をどう埋めたかの開示文(F-3の「試算の仮定」に出す)
   is_public INTEGER NOT NULL DEFAULT 1
 );
 
@@ -335,6 +336,17 @@ CREATE TABLE batch_runs (
   status TEXT NOT NULL,           -- running / success / failed
   feeds INTEGER, routes INTEGER,
   message TEXT
+);
+
+-- 診断バンドルの版(§6.2の「切替はD1のメタ更新で行う」の受け皿)
+CREATE TABLE bundles (
+  version TEXT PRIMARY KEY,       -- R2のキー接頭辞
+  created_at INTEGER NOT NULL,
+  route_count INTEGER NOT NULL,
+  feed_count INTEGER NOT NULL,
+  params_json TEXT,               -- 計算パラメータ(§9.2)のスナップショット
+  source_note TEXT,
+  is_current INTEGER NOT NULL DEFAULT 0
 );
 
 -- フィード管理(有効期限監視)
@@ -377,6 +389,7 @@ Better Authが必要とするテーブル(user / session / account / verificatio
 | GET | `/api/vehicles` | 公開車両マスタ | 不要 |
 | POST | `/api/scenarios` | 診断シナリオを保存しIDを返す | 不要(レート制限あり) |
 | GET | `/api/scenarios/[id]` | 保存済みシナリオを取得 | 不要 |
+| GET | `/api/map` | マップ用GeoJSON(R2の`routes.json`をWorker経由で配信) | 不要 |
 | GET | `/api/meta` | データ生成日時・出典 | 不要 |
 | POST | `/api/admin/vehicles` | 車両マスタ追加・更新 | 必要 |
 | GET | `/api/admin/batch` | バッチ実行状況 | 必要 |
@@ -515,9 +528,9 @@ wrangler d1 migrations apply regen-db --remote  # 本番適用
 
 事前に済ませておくとスムーズなもの。いずれもCloudflareのダッシュボードまたはCLIでの操作。
 
-1. **Cloudflareアカウントでのログイン**: `npx wrangler login`(ブラウザが開いて認可)
-2. **D1データベースの作成**: `npx wrangler d1 create regen-db` → 出力される `database_id` を `wrangler.jsonc` に貼る
-3. **R2バケットの作成**: `npx wrangler r2 bucket create regen-bundles`(R2は初回にダッシュボードでの有効化が必要な場合がある)
+1. ~~**Cloudflareアカウントでのログイン**~~: `npx wrangler login` — **完了(2026-08-30)**
+2. ~~**D1データベースの作成**~~ — **完了(2026-08-30、チケット06で代行)**。`regen-db` / `database_id` は `apps/web/wrangler.jsonc` に記入済み
+3. ~~**R2バケットの作成**~~ — **完了(2026-08-30、チケット06で代行)**。`regen-bundles`
 4. **GitHubリポジトリの作成**とActions用シークレット登録: `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`
    - APIトークンはCloudflareダッシュボードの「My Profile → API Tokens」から、Workers・D1・R2の編集権限を付けて発行
 5. **Better Authのシークレット生成と登録**: `npx wrangler secret put BETTER_AUTH_SECRET`

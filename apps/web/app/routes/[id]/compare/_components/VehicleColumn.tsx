@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import { VEHICLES, type SimResult, type Vehicle } from "@regen/core";
+import type { SimResult, Vehicle } from "@regen/core";
 import { VerdictChip } from "@/app/_components/VerdictChip";
 import { formatInt, formatKwhPerKm, formatNumber } from "@/lib/format";
 import { Slider } from "./Slider";
@@ -26,6 +26,7 @@ function Row({ label, value, hint }: { label: string; value: React.ReactNode; hi
  */
 export function VehicleColumn({
   side,
+  vehicles,
   vehicle,
   massKg,
   batteryKwh,
@@ -37,6 +38,8 @@ export function VehicleColumn({
 }: {
   /** A=青(--accent) / B=橙(--chart-series2) */
   side: "A" | "B";
+  /** セレクタに並べる選択肢(D1の車両マスタ) */
+  vehicles: Vehicle[];
   vehicle: Vehicle;
   massKg: number;
   batteryKwh: number;
@@ -66,7 +69,7 @@ export function VehicleColumn({
         onChange={(e) => onVehicleChange(e.target.value)}
         className="mt-2 h-11 w-full rounded-btn border border-line bg-accent-weak px-3 text-body sm:h-10"
       >
-        {VEHICLES.map((v) => (
+        {vehicles.map((v) => (
           <option key={v.id} value={v.id}>
             {v.name}
           </option>

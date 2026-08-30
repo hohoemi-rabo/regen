@@ -1,17 +1,22 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { DATA_VERSION } from "@/lib/site";
+import { getCurrentBundle, listFeeds } from "@/lib/data";
 
-/**
- * D1バインディングの疎通確認用。
- * wrangler.jsonc の d1_databases を有効化するまでは binding: "none" が返る(正常)。
- */
+export const revalidate = 3600;
+
+/** GET /api/meta — データ生成日時・出典・件数(要件§7) */
 export async function GET() {
-  let binding = "none";
-  try {
-    const { env } = getCloudflareContext();
-    if ((env as Record<string, unknown>).DB) binding = "d1";
-  } catch {
-    // next dev をOpenNext初期化なしで動かした場合など
+  const bundle = await getCurrentBundle();
+  const feeds = await listFeeds();
+  if (!bundle) {
+    return Response.json({ service: "regen", error: "no current bundle" }, { status: 503 });
   }
-  return Response.json({ service: "regen", dataVersion: DATA_VERSION, binding });
+  return Response.json({
+    service: "regen",
+    version: bundle.version,
+    generatedAt: new Date(bundle.createdAt).toISOString(),
+    routeCount: bundle.routeCount,
+    feedCount: bundle.feedCount,
+    source: bundle.sourceNote,
+    params: bundle.paramsJson ? JSON.parse(bundle.paramsJson) : null,
+    feeds: feeds.map((f) => ({ id: f.id, name: f.name, feedEnd: f.feedEnd })),
+  });
 }

@@ -33,10 +33,11 @@ export function MapScreen() {
   const [selected, setSelected] = useState<RouteProps | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
-  // 静的アセットからロード(チケット02のデータ方針。バッチ08でR2に置換)
+  // R2の現行バンドル(bundles/<version>/routes.json)をWorker経由で取る。
+  // どの版を返すかは D1 の bundles.is_current が決めるので、ここは版を意識しない
   useEffect(() => {
     let cancelled = false;
-    fetch("/map_data.json", { cache: "force-cache" })
+    fetch("/api/map", { cache: "force-cache" })
       .then((res) => {
         if (!res.ok) throw new Error(`地図データの取得に失敗しました(HTTP ${res.status})`);
         return res.json() as Promise<RouteCollection>;

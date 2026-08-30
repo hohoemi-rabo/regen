@@ -18,9 +18,9 @@ import { diagnose, fillNulls, smooth, SMOOTH_W, STEP } from "@regen/core";
 
 const ROOT = join(process.cwd(), "..");
 const SEED = join(ROOT, "data", "seed");
-const SUMMARY = join(ROOT, "apps", "web", "data", "routes_summary.json");
-const OUT = join(ROOT, "apps", "web", "data", "profiles.json");
-const OUT25 = join(ROOT, "apps", "web", "data", "profiles25.json");
+const SUMMARY = join(ROOT, "data", "bundle", "routes_summary.json");
+const OUT = join(ROOT, "data", "bundle", "profiles.json");
+const OUT25 = join(ROOT, "data", "bundle", "profiles25.json");
 
 /** グラフの横幅768pxに対して十分な解像度。55km路線でも約140m刻みになる */
 const MAX_POINTS = 400;

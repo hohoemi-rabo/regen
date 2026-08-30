@@ -13,8 +13,8 @@ import { parseCsv } from "./csv";
 
 const ROOT = join(process.cwd(), "..");
 const GTFS_DIR = join(ROOT, "data", "gtfs");
-const SUMMARY = join(ROOT, "apps", "web", "data", "routes_summary.json");
-const OUT = join(ROOT, "apps", "web", "data", "schedules.json");
+const SUMMARY = join(ROOT, "data", "bundle", "routes_summary.json");
+const OUT = join(ROOT, "data", "bundle", "schedules.json");
 
 const DAY_KEYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
 const DAY_LABELS = ["月曜", "火曜", "水曜", "木曜", "金曜", "土曜", "日曜"];

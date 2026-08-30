@@ -11,9 +11,7 @@ import {
   SUMMER_AUX_W,
   WINTER_AUX_W,
 } from "@regen/core";
-import summary from "@/data/routes_summary.json";
-import profiles from "@/data/profiles.json";
-import schedules from "@/data/schedules.json";
+import { getProfile, getRoute, listRouteIds } from "@/lib/data";
 import { ConclusionBadge } from "@/app/_components/ConclusionBadge";
 import { StatTile, StatTileGrid } from "@/app/_components/StatTile";
 import { isVerdict } from "@/app/_components/verdict";
@@ -21,30 +19,50 @@ import { formatInt, formatKm, formatKwhPerKm, formatNumber } from "@/lib/format"
 import { ElevationChart } from "./_components/ElevationChart";
 import { Bar, DefinitionRow, Section } from "./_components/sections";
 
-type Row = (typeof summary)[number];
-type Profile = (typeof profiles)[keyof typeof profiles];
-type Schedule = (typeof schedules)[keyof typeof schedules];
-
-function load(id: string) {
-  const row = (summary as Row[]).find((r) => r.id === id);
-  const profile = (profiles as Record<string, Profile>)[id];
-  const schedule = (schedules as Record<string, Schedule>)[id];
-  if (!row || !profile || !schedule) return null;
-  return { row, profile, schedule };
+/**
+ * D1(路線メタ)とR2(プロファイル)から1路線分を取る。
+ * 表示側は診断値を短い名前で使うので、ここで詰め替えて画面のコードは変えない。
+ * gmaxは%表記に戻す(D1には分数で入っている)。
+ */
+async function load(id: string) {
+  const route = await getRoute(id);
+  if (!route) return null;
+  const profile = await getProfile(route.bundleKey);
+  if (!profile) return null;
+  const row = {
+    name: route.name,
+    agency: route.agency,
+    verdict: route.verdict,
+    mode: route.accuracy,
+    batt: route.roundtripBattPct,
+    kwh: route.kwhPerKm,
+    up: route.climbM,
+    gmax: route.maxGrade * 100,
+    daily: route.dailyKwh,
+    charges: route.extraCharges,
+    corr: route.correctedM,
+    // 力行・回生・最高最低標高はD1に列がないのでプロファイル側から取る
+    Etr: profile.tractionKwh,
+    regen: profile.regenKwh,
+    emax: profile.emax,
+    emin: profile.emin,
+  };
+  return { row, profile, schedule: profile.schedule };
 }
 
 /** 診断済みの46路線で固定。列挙外のIDは404にする(動的生成させない) */
 export const dynamicParams = false;
+export const revalidate = 3600;
 
-export function generateStaticParams() {
-  return (summary as Row[]).map((r) => ({ id: r.id }));
+export async function generateStaticParams() {
+  return (await listRouteIds()).map((id) => ({ id }));
 }
 
 export async function generateMetadata(props: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await props.params;
-  const data = load(id);
+  const data = await load(id);
   if (!data) return { title: "路線が見つかりません | Regen" };
   const { row } = data;
   return {
@@ -55,7 +73,7 @@ export async function generateMetadata(props: {
 
 export default async function RoutePage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params;
-  const data = load(id);
+  const data = await load(id);
   if (!data) notFound();
   const { row, profile, schedule } = data;
 

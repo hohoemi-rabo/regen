@@ -1,5 +1,5 @@
 {
-  // Cloudflare Workers の設定。バインディング(D1/R2)はリソース作成後にコメントを外す。
+  // Cloudflare Workers の設定。バインディング名は要件§7に合わせて DB / BUNDLES。
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "regen",
   "main": ".open-next/worker.js",
@@ -8,13 +8,29 @@
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "regen-db",
+      "database_id": "98dc019f-ee56-4e89-9ff5-4ad0062cf0dd",
+      // drizzle-kit の出力先。既定は apps/web/migrations なので明示する
+      "migrations_dir": "../../packages/db/migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BUNDLES",
+      "bucket_name": "regen-bundles"
+    },
+    {
+      // OpenNextがSSG/ISRページを配信するためのキャッシュ。
+      // 同じバケットを incremental-cache/ 配下に間借りする(診断バンドルは bundles/ 配下)
+      "binding": "NEXT_INC_CACHE_R2_BUCKET",
+      "bucket_name": "regen-bundles"
+    }
+  ],
+  "vars": {
+    "NEXT_INC_CACHE_R2_PREFIX": "incremental-cache"
   }
-  // ↓ `wrangler d1 create regen-db` 実行後、database_id を貼ってコメントを外す
-  // ,"d1_databases": [
-  //   { "binding": "DB", "database_name": "regen-db", "database_id": "TODO" }
-  // ]
-  // ↓ `wrangler r2 bucket create regen-bundles` 実行後にコメントを外す
-  // ,"r2_buckets": [
-  //   { "binding": "BUNDLES", "bucket_name": "regen-bundles" }
-  // ]
 }

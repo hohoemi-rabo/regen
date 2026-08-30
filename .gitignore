@@ -11,3 +11,4 @@ data/gtfs/
 .dev.vars
 *.tsbuildinfo
 .DS_Store
+batch/out/

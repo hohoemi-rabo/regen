@@ -1,0 +1,57 @@
+[
+  {
+    "id": "MinamishinshuIidacity1_2000020202053",
+    "name": "飯田市",
+    "feedId": "MinamishinshuIidacity1"
+  },
+  {
+    "id": "MinamishinshuMatsukawa1_6000020204021",
+    "name": "松川町",
+    "feedId": "MinamishinshuMatsukawa1"
+  },
+  {
+    "id": "MinamishinshuNanbu1_4000020204048",
+    "name": "下伊那南部地域公共交通対策協議会",
+    "feedId": "MinamishinshuNanbu1"
+  },
+  {
+    "id": "MinamishinshuOoshika1_7100001020617",
+    "name": "伊那バス",
+    "feedId": "MinamishinshuOoshika1"
+  },
+  {
+    "id": "MinamishinshuShinnan1_2100001022519",
+    "name": "信南交通",
+    "feedId": "MinamishinshuShinnan1"
+  },
+  {
+    "id": "Minamishinshuachi1_4000020204072",
+    "name": "阿智村",
+    "feedId": "Minamishinshuachi1"
+  },
+  {
+    "id": "Minamishinshuiida2_2000020202053",
+    "name": "飯田市",
+    "feedId": "Minamishinshuiida2"
+  },
+  {
+    "id": "Minamishinshuseibu1_8000020204102",
+    "name": "根羽村",
+    "feedId": "Minamishinshuseibu1"
+  },
+  {
+    "id": "Minamishinshutakagi1_600020204153",
+    "name": "喬木村",
+    "feedId": "Minamishinshutakagi1"
+  },
+  {
+    "id": "Minamishinshutakamori1_5000020204030",
+    "name": "高森町",
+    "feedId": "Minamishinshutakamori1"
+  },
+  {
+    "id": "Minamishinshutoyooka1_6000020204161",
+    "name": "豊丘村",
+    "feedId": "Minamishinshutoyooka1"
+  }
+]
