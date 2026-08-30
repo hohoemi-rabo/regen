@@ -1,0 +1,94 @@
+# main への push で本番へ出す(要件§10.2)。
+#
+# 受入条件は「mainへのpushだけで本番反映される」「CI落ちのままデプロイされない」。
+# 後者は ci.yml を `uses:` で呼び、deploy を `needs: ci` にすることで担保する。
+# `workflow_run` で待つ形にしないのは、チェックが落ちたときに「デプロイが失敗した」ではなく
+# 「そもそも起動しない」になり、履歴から読み取れなくなるため。
+name: deploy
+
+on:
+  # TODO(チケット12): 手動実行で1回通してから push トリガを足す
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  # 途中で切ると R2/D1 と Worker の版がずれる。積んで順に流す
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # `next build` は46路線×2ページを事前生成し、その過程で generateStaticParams が
+      # D1を引く(apps/web/lib/data.ts の listRouteIds)。`.wrangler/` はgitignoreなので
+      # CIには何も無い。標高にもGTFSにも触らず、コミット済み data/bundle/ から
+      # **オフラインで**復元する(理由は batch/src/seed-local.ts の先頭)。
+      # ここは --local しか触らないので、Cloudflareの資格情報を渡さない
+      - name: ビルド用のローカルD1/R2をシード
+        run: pnpm seed:local
+
+      # ビルドとデプロイを分けるのは、この間に本番マイグレーションを挟むため。
+      # ビルドが落ちてもD1だけ先に進むことがない
+      - name: ビルド(OpenNext)
+        run: pnpm --filter web exec opennextjs-cloudflare build
+
+      # 新スキーマを前提にしたWorkerが先に出ると本番が壊れるので、適用はデプロイの前。
+      # **加算のみのマイグレーションに限る。** 列を落とす変更は2回に分けること
+      # (旧コードが動いたまま新スキーマになれる形にしてから、次のデプロイで落とす)
+      - name: 本番D1へマイグレーション適用
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm --filter web exec wrangler d1 migrations apply regen-db --remote
+
+      - name: デプロイ
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm --filter web exec opennextjs-cloudflare deploy
+
+      # 出たあとに本番を叩いて主要画面が生きていることを確かめる。
+      # ここが落ちればワークフローが赤くなるので、壊れたまま気づかず放置しない
+      - name: 疎通確認
+        run: |
+          set -uo pipefail
+          base=https://regen.rabo-hohoemi.workers.dev
+          fail=0
+          check() {
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$base$1")
+            if [ "$code" != "$2" ]; then
+              echo "NG  $1 -> $code(期待 $2)"; fail=1
+            else
+              echo "OK  $1 -> $code"
+            fi
+          }
+          check /api/health 200
+          check / 200
+          check /routes 200
+          check /about 200
+          check /calibrate 200
+          check /routes/Minamishinshuachi1_59 200
+          check /routes/Minamishinshuachi1_59/compare 200
+          check /api/map 200
+          check /api/meta 200
+          # 管理画面はCookieが無ければログインへ飛ばす(F-7の保護)
+          check /admin 307
+          exit $fail

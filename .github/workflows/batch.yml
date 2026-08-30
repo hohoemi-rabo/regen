@@ -20,9 +20,11 @@ on:
         type: boolean
         default: false
 
-# 再生成したデータを main に戻すためのもの(要件§6.2のバンドルはR2、履歴はgit)
+# contents: 再生成したデータを main に戻す(要件§6.2のバンドルはR2、履歴はgit)
+# actions:  そのあと deploy を起動する(下の「デプロイを起動」を参照)
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: batch
@@ -69,9 +71,10 @@ jobs:
           version=$(sed -n 's/^::version=//p' batch.log | tail -1)
           echo "version=${version:-unknown}" >> "$GITHUB_OUTPUT"
 
-      # ビルドはローカルD1/R2のシードを data/bundle/ から作る。
+      # ビルドはローカルD1/R2のシードを data/bundle/ から作る(batch/src/seed-local.ts)。
       # ここを戻しておかないと、次のデプロイがプリレンダリングする46ページだけ古くなる
       - name: 再生成したデータをコミット
+        id: commit
         run: |
           git config user.name "regen-batch"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -81,4 +84,14 @@ jobs:
           else
             git commit -m "chore(data): refresh diagnosis bundle (${{ steps.batch.outputs.version }})"
             git push
+            echo "pushed=true" >> "$GITHUB_OUTPUT"
           fi
+
+      # **GITHUB_TOKEN による push は他のワークフローを起動しない**(GitHubの再帰防止)。
+      # data/bundle/ は事前生成する46ページの入力そのものなので、明示的にデプロイを起こす。
+      # workflow_dispatch はこの制限の例外なので GITHUB_TOKEN のままで起動できる
+      - name: デプロイを起動
+        if: steps.commit.outputs.pushed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run deploy.yml --ref main
