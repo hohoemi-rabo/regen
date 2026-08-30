@@ -9,7 +9,7 @@
 
 ## セットアップ(初回のみ)
 
-Node 20以上とpnpmが必要。pnpmが無ければ:
+Node 22.13以上とpnpmが必要(pnpm 11 が Node 22.13+ を要求する)。pnpmが無ければ:
 
 ```bash
 npm install -g pnpm
