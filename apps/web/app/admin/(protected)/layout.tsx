@@ -25,8 +25,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <main className="mx-auto w-full max-w-[900px] px-4 py-8">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-page-title">管理</h1>
-        <div className="flex items-center gap-3 text-note text-ink-3">
-          <span>{session.user.email}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-note text-ink-3">{session.user.email}</span>
           <SignOutButton />
         </div>
       </div>
