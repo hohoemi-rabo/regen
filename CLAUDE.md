@@ -164,7 +164,7 @@ resample(25m) → fillNulls → smooth(175m) →
 - PC表示: 一覧(F-5)・比較(F-3)は最大幅1200px、診断書は900px(DESIGN §4.1)
 - 未確定事項は要件定義書§13(車両マスタの車種、TCOの項目など)
 
-### 実装済みの資産(05以降で再利用する)
+### 実装済みの資産(再利用する)
 
 - **共通UI** `apps/web/app/_components/`: VerdictChip / ConclusionBadge / StatTile(+Grid) /
   Button / DataTable(ソート・行クリック対応) / FilterRow / verdict.ts(判定の記号・色の単一情報源)。
@@ -174,14 +174,31 @@ resample(25m) → fillNulls → smooth(175m) →
 - **coreの追加API**(アルゴリズム本体は不変): `Diagnosis.correctedIdx`(補正位置) /
   `cruiseSpeedKmh()` / `CO2` / `compareDiesel()` / `chargingPlan()`(実ダイヤ充電計画。
   1便が使用可能容量を超える車両は表現不可 — `simulateVehicle()` が先に成立性を判定して `infeasible` を返す)
-- **車両比較の部品** `packages/core/`: `vehicles.ts`(車両マスタ4件。型はD1の vehicles テーブルに一致。
-  06完了後に `GET /api/vehicles` へ差し替え) / `simulate.ts`(`simulateVehicle` / `tcoSeries` / `breakEvenYear`)。
-  画面側は `apps/web/app/routes/[id]/compare/_components/` に Slider / NumberField / TcoChart / VehicleColumn
-- **データ生成**(`batch/`、生成物はコミット済み): `seed-map`(→ public/map_data.json + data/routes_summary.json、
-  id = `feed_route_id`) / `seed-profiles`(→ data/profiles.json: 表示用標高・補正区間・夏冬kWh、
-  および data/profiles25.json: 25m解像度の補正後標高) / `seed-schedule`(→ data/schedules.json:
-  代表運行日ダイヤ。要 `data/gtfs/` 展開)
+- **車両比較の部品** `packages/core/`: `vehicles.ts`(車両マスタの型 + 初期4件。**画面はD1から読む**ので
+  ここはシードの入力) / `simulate.ts`(`simulateVehicle` / `tcoSeries` / `breakEvenYear`) /
+  `scenario.ts`(共有シナリオの保存形式・検証・ID生成)。
+  画面側は `apps/web/app/routes/[id]/compare/_components/` に Slider / NumberField / TcoChart /
+  VehicleColumn / ShareButton、`apps/web/app/s/[id]/_components/ScenarioSheet.tsx` が共有ページ
+- **データ生成**(`batch/`、生成物はコミット済み)。**出力先はすべて `data/bundle/`**
+  (06で `apps/web/data/` から移した。アプリはもうこれを直接読まない):
+  `seed-map`(→ map.geojson + routes_summary.json、id = `feed_route_id`)/
+  `seed-profiles`(→ profiles.json: 表示用標高・補正区間・夏冬kWh、profiles25.json: 25m解像度の補正後標高)/
+  `seed-schedule`(→ schedules.json: 代表運行日ダイヤ。要 `data/gtfs/` 展開)/
+  `seed-agencies`(→ data/seed/agencies.json + feeds.json。GTFSから事業者とフィード期限を抽出)/
+  `seed-cloud`(data/bundle/ と data/seed/ を **D1とR2へ投入**。`-- --remote` で本番)
 - **路線ID**は `feed_route_id`(例 `Minamishinshuseibu1_13`)で全データ共通
+
+### チケット08(データ更新バッチ)の出発点
+
+- **投入経路はもうある。** `batch/src/seed-cloud.ts` が
+  `data/bundle/` + `data/seed/` → D1(agencies/feeds/routes/vehicles/bundles)と
+  R2(`bundles/<version>/`)へ冪等に書く。`--remote` で本番。08はここに
+  「GTFS取得・更新検出・タイルキャッシュ・batch_runs記録・Actions化」を足す形になる
+- **版の切替は `bundles.is_current` の付け替えだけ。** R2は版ごとにキーを分けており旧版を消さないので、
+  新版を全部書き終えてから `is_current` を移せば、実行中も旧版が壊れない(08の受入条件)
+- 版の文字列は現在 `apps/web/lib/site.ts` の `DATA_GENERATED_AT` から作っている。
+  バッチが版を発行するようになったら、この参照方向を逆にする(D1の `bundles` が正本)
+- `data/gtfs/` はgitignore。`seed-agencies` / `seed-schedule` は展開済みを前提にしている
 
 ### 公開の書き込み口(チケット07で確定)
 
@@ -213,10 +230,12 @@ resample(25m) → fillNulls → smooth(175m) →
 
 ### ブラウザ再計算に使うプロファイル(チケット05で確定)
 
-- **F-3/F-4がブラウザで再計算するときは `apps/web/data/profiles25.json`(25m間隔・補正後)を使う。**
-  `profiles.json` の `elev` は表示用に最大400点へ間引いてあり `stepM` が路線ごとに25〜150mと変わる。
+- **F-3/F-4がブラウザで再計算するときは25m間隔・補正後の標高を使う。**
+  実行時はR2のプロファイル(`profile.elev25`)、バッチ側は `data/bundle/profiles25.json`。
+  表示用の `elev` は最大400点へ間引いてあり `stepM` が路線ごとに25〜150mと変わる。
   そちらで `energyForProfile()` を回すと冬電力量が最大1.55%ずれ、診断書と数値が食い違う
-- `routes_summary.json` の `gmax` は**%表記**。`judge()` は分数で比較するので `/100` してから渡す
+- 単位の罠: `data/bundle/routes_summary.json` の `gmax` は**%表記**・`L` は**km**。
+  D1の `max_grade` は**分数**・`length_m` は**メートル**。`judge()` と `SimInput.gmax` は分数
 - 25m配列は1路線分だけをServer→Clientのpropsで渡す(全路線分を渡さない)
 
 ### 便数と充電計画の方針(チケット04で確定)
@@ -228,9 +247,12 @@ resample(25m) → fillNulls → smooth(175m) →
 
 ### 検証の作法
 
-- 本番ビルド確認は **`./scripts/preview.sh [ポート]`** を使う(devサーバー停止→ポート解放待ち→
-  クリーンビルド→起動を自動化)。`next dev` 起動中の `next build`、`.next` を残した再ビルド、
-  kill漏れ(WSLでは `lsof -ti` が効かないので `ss -tlnp` からPIDを取る)はすべて画面が壊れる
+- **本番相当の確認は `pnpm --filter web preview`(Workersランタイム・ポート8787)を使う。**
+  D1/R2バインディングが要る画面とAPIは、これでしか正しく動かない。
+  `./scripts/preview.sh` は素の `next start` でバインディングが無く `getCloudflareContext()` が throw するので、
+  06以降は使わない(残してあるが用途がない)
+- 起動し直すときは先にポートを解放する。**WSLでは `lsof -ti` が効かないので `ss -tlnp` からPIDを取る**。
+  `.next` / `.open-next` を残した再ビルドは避け、`rm -rf` してから建て直す
 - ヘッドレス確認: `~/.cache/ms-playwright/chromium_headless_shell-1228/chrome-headless-shell-linux64/chrome-headless-shell`。
   MapLibreには `--enable-unsafe-swiftshader --use-gl=angle --use-angle=swiftshader` が必須。
   ただし**MapLibreの描画内容はヘッドレスでは撮れない**(`preserveDrawingBuffer: false` のため
@@ -238,7 +260,9 @@ resample(25m) → fillNulls → smooth(175m) →
   印刷は `--print-to-pdf` → `pdftoppm -png` で目視。**`--virtual-time-budget=15000` を必ず付ける**
   (付けないとフォント読み込みや動的ルートのストリーミング前に印刷され、ページ数が run ごとに
   39〜43枚目でぶれる。動的ルートではローディングのスケルトンだけが印刷されることもある)。コンソールエラーは `--enable-logging=stderr --log-level=0`
-- 診断書の印刷はA4縦1枚が原則(46路線中39路線が1枚、補正・充電の多い7路線は2枚で許容済み)
+- 診断書の印刷はA4縦1枚が原則(46路線中39路線が1枚、補正・充電の多い7路線は2枚で許容済み。
+  この39/7は `--virtual-time-budget` を付けて測った値。付けずに測ると run ごとにぶれる)。
+  共有シナリオ(F-6)もA4縦1枚に収まる
 
 ## データ
 
@@ -254,5 +278,4 @@ resample(25m) → fillNulls → smooth(175m) →
 - `data/seed/agencies.json` `feeds.json` — GTFSから抽出した事業者・フィード(`seed-agencies`が生成)
 - `data/seed/map_data.json` — 46路線の診断結果+簡略ポリライン(F-1の初期データ)
 - `data/seed/dem_all_routes.json` + `routes_meta.json` — 生標高とメタ(再診断の入力)
-- `apps/web/data/routes_summary.json` — 一覧用サマリー(座標なし)
 - GTFS原本は `data/gtfs_zips/`。フィード更新日に注意(喬木村は2026-12-15期限)
