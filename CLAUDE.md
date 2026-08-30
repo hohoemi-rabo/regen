@@ -29,15 +29,19 @@
 ```bash
 pnpm install         # 依存インストール(ルートで)
 pnpm dev             # apps/web を next dev で起動
+pnpm typecheck       # 全パッケージの tsc --noEmit(CIと同じ)
+pnpm lint            # ESLint。警告も落とす(--max-warnings=0)
 pnpm test            # ゴールデンテスト(core)+ apps/web の単体テスト
+pnpm seed:local      # ビルド用のローカルD1/R2を data/bundle/ から復元(オフライン・約70秒)
 pnpm batch           # F-8バッチ: GTFS取得→診断→R2/D1(ローカル)。更新が無ければ即終了
 pnpm batch -- --remote          # 本番のD1/R2へ公開
 pnpm batch -- --allow-changes   # 公開値の変化を承認して公開(既定は変化を見つけたら止まる)
 pnpm batch -- --skip-fetch --no-publish   # 取得も書き込みもせず成果物だけ再生成(オフライン確認)
 pnpm --filter @regen/db generate                   # スキーマ差分からマイグレーション生成
 pnpm --filter web exec wrangler d1 migrations apply regen-db --local   # ローカルD1へ適用(--remoteで本番)
-pnpm --filter web preview   # Workers環境でのローカル確認(OpenNext)
-pnpm --filter web deploy    # Cloudflare Workersへデプロイ
+pnpm --filter web preview       # Workers環境でのローカル確認(OpenNext)
+pnpm --filter web run deploy    # 手でデプロイする場合。**`run` を省くとpnpm組み込みのdeployが動く**
+                                # 通常は main への push で自動デプロイされる
 ```
 
 ## アーキテクチャの要点
@@ -118,8 +122,9 @@ export default async function Page(props: {
 
 - **`export const runtime = "edge"` を書かない。** OpenNextアダプタはNode.jsランタイム(既定)前提。
 - `getCloudflareContext().env` はServer Component / Route Handler / Server Actionからのみ呼ぶ。
-- `next/image` の既定の画像最適化ローダーはWorkers上でそのままは動かない。画像を使うなら
-  静的アセット + 明示的な `width`/`height`、またはローダー設定をチケット12で決めてから。
+- **`next/image` は使わない**(チケット12で確定)。既定の画像最適化ローダーがWorkers上で
+  動かないため、図版は `public/` の静的アセットを素の `<img>` + 明示的な `width`/`height` で出す。
+  `next.config.ts` の `images.unoptimized` と ESLint の `@next/next/no-img-element` 無効化が対。
 - フォントは `next/font` でセルフホストし、外部リクエストとCLSを避ける(指定はDESIGN.mdに従う)。
 
 ### Server Actions
@@ -159,13 +164,19 @@ resample(25m) → fillNulls → smooth(175m) →
   06 D1・R2・API / 07 F-6シナリオ共有 / 08 F-8データ更新バッチ / 09 F-4じぶん補正 /
   10 F-7管理画面 / 11 `/about`。詳細は各チケット参照)
 - **D1 `regen-db`(98dc019f-ee56-4e89-9ff5-4ad0062cf0dd)と R2 `regen-bundles` は作成・投入済み**
-  (ローカル・本番とも)。要件§11-1〜3は完了。§11-4以降(GitHub Actionsのシークレット等)はチケット12
+  (ローカル・本番とも)
 - GitHub: https://github.com/hohoemi-rabo/regen (main直コミット・直push)
-- **次: チケット12(CI/デプロイ自動化・応募物一式)。** 詳細は docs/tickets/README.md 参照
+- **チケット12は前半(CI/CD・本番運用)まで完了。** main への push だけで
+  `ci` → seed → build → 本番D1マイグレーション → deploy → 疎通確認 が流れる。
+  **残りは応募資材(紹介動画・PDF・スクリーンショット5枚・400字の作品説明)と予備公開先。**
+  応募フォームは **2026-09-30** まで開かないので、実画面を見てから着手する
 - **本番D1/R2は新版 `20260818-35b1f7e1` に切替済み**(2026-08-30、GitHub Actionsの手動実行で公開)。
   判定しきい値が `paramsSnapshot()` に入った(チケット10)ので、版が `c2bb49ee` から変わっている。
   要件§11-4のシークレットも登録済みで、週次(月曜05:00 JST)の自動実行が生きている。
   **ワークフローは Node 22。** pnpm 11 が Node 22.13以上を要求する(Node 20では setup で落ちる)
+- 要件§11(まさゆきさんの作業)は**すべて完了**。以降手が要るのは応募フォームと動画撮影だけ
+- 要件§5.1の性能目標は本番実測で全項目達成(初回表示1.08秒 / 診断書0.43秒 /
+  F-3再計算0.2ミリ秒 / マップGeoJSON gzip 65KB / バッチ約3分)
 - 各チケットの進捗はチケット内のステータス行とTodoチェックボックスが正(この節は概況のみ)
 - PC表示: 一覧(F-5)・比較(F-3)は最大幅1200px、診断書は900px(DESIGN §4.1)
 - 未確定事項は要件定義書§13(車両マスタの車種、TCOの項目など)
@@ -208,6 +219,11 @@ resample(25m) → fillNulls → smooth(175m) →
   (新版は `is_current=0`)→ **最後に `is_current` を付け替える**。どこで失敗しても、配信中の版は
   必ず「R2に全部揃っている版」を指す。**旧版のR2キーは消さない**
   (`/s/[id]` が `bundleVersion` を固定して読むため、消すと過去の共有URLの数字が動く)
+- **`data/bundle/` は8ファイル。** 7つは公開値(人が差分を読む)、8つ目の `d1.json` は
+  **ビルド用のローカルD1/R2を診断を回さずに作り直すための残り**。他の7つから復元できない
+  `lengthM`(routes_summary の `L` はkmに丸めてあり、profiles.json の `lengthM` とは最大24m違う
+  = 11路線で小数1桁が変わる)/ `maxGrade` / `feedOf` と、公開した版・時刻・しきい値を持つ。
+  **`--no-publish` では `d1.json` を書き換えない**(何も配信していないのに版を名乗らせないため)
 - **R2アップロードは直列。** 並列にするとローカル(miniflare)で各wranglerプロセスが同じSQLiteを掴んで
   `SQLITE_BUSY` で落ちる(`next build` を `cpus: 1` にしているのと同じ理由)
 - **変化ガード。** 公開値が前回(`data/bundle/routes_summary.json`)と1つでも変わったら、
@@ -261,6 +277,30 @@ resample(25m) → fillNulls → smooth(175m) →
   更新検出の早期リターンで再計算されない。変更後の初回バッチは変化ガードで止まる(設計どおり)
 - **車両マスタの種は `ON CONFLICT DO NOTHING`。** 管理画面の編集を週次バッチが上書きしないため
 
+### CI/CDの作法(チケット12で確定)
+
+- **ワークフローは3本。** `ci`(PR・main以外へのpush)/ `deploy`(mainへのpush・手動)/
+  `batch`(週次・手動)。**`deploy` は `ci.yml` を `uses:` で呼び、`needs: ci` で待つ。**
+  チェックの手順を2か所に書くと必ずずれるので、コピーしない
+- **ビルドの前に `pnpm seed:local`。** `next build` は46路線×2ページを事前生成し、
+  その過程でD1を引く。`.wrangler/` はgitignoreなのでCIには何も無い。
+  **バッチ(`--skip-fetch`)で代用しない** — 標高タイルを国土地理院に取りに行くので
+  デプロイが外部サイトの生死に依存し、さらにしきい値を**対象のD1**から読むため、
+  空のCIでは既定値になって本番と違う判定を焼いてしまう
+- **本番D1のマイグレーションはビルドの後・デプロイの前。** 新スキーマ前提のWorkerが
+  先に出ると本番が壊れる。ビルドが落ちたときにD1だけ進んでしまうのも避ける。
+  **加算のみのマイグレーションに限る**(列を落とす変更は2回のデプロイに分ける)
+- **`GITHUB_TOKEN` による push は他のワークフローを起動しない**(GitHubの再帰防止)。
+  `batch.yml` が `data/bundle/` を戻しても deploy は自動では動かないので、
+  最後に `gh workflow run deploy.yml` で明示的に起こしている(`workflow_dispatch` は
+  この制限の例外)。ここを消すと、データを更新しても46ページが古いままになる
+- **`deploy` の concurrency は `cancel-in-progress: false`。** 途中で切ると
+  R2/D1とWorkerの版がずれる
+- **`.next` / `.open-next` をキャッシュしない。** 残したままの再ビルドは避ける(検証の作法と同じ)
+- ESLintの対象は `apps/web` だけ。`packages/core` はゴールデンテスト123件、`batch` は
+  `tsc --strict` で守られている。**警告も落とす**(`--max-warnings=0`)ので、
+  `react-hooks/exhaustive-deps` のような警告レベルの規則が溜まらない
+
 ### 読み物ページ `/about` の作法(チケット11で確定)
 
 - **印刷CSSは `.print-a4` を付けた画面にだけ効かせる。** `globals.css` の `@media print` は
@@ -296,8 +336,8 @@ resample(25m) → fillNulls → smooth(175m) →
 - **必ず `getCloudflareContext({ async: true })` を使う。** 46路線を全件プリレンダリングしており、
   静的生成コンテキストでは同期版が throw する
 - **ビルドにはシード済みのローカルD1/R2が要る**(`.wrangler/state` はgitignore)。
-  クリーンクローンでは `pnpm batch` を先に流す(ネットワークが無いときは
-  `pnpm batch -- --skip-fetch` でコミット済みzipから作れる)。
+  クリーンクローンでは **`pnpm seed:local`** を先に流す(コミット済み `data/bundle/` から
+  復元。診断を回さないのでオフラインで約70秒。CIもこれを使う)。
   ビルドワーカーを並列にすると同じSQLiteを掴んで `SQLITE_BUSY` で落ちるため
   `next.config.ts` で `cpus: 1 / workerThreads: false` に固定してある
 - **`generateStaticParams` のページはOpenNextでは incremental cache 経由で配信される。**

@@ -22,9 +22,15 @@ npm install -g pnpm
 
 ```bash
 pnpm install
+pnpm seed:local  # ビルド用のローカルD1/R2を data/bundle/ から復元(オフライン・約70秒)
 pnpm test        # ゴールデンテスト(46路線がPython版と一致)+ CSVパーサ等の単体テスト
-pnpm dev         # http://localhost:3000 (仮トップページ: 実診断データの一覧が出る)
+pnpm dev         # http://localhost:3000
 ```
+
+**`pnpm seed:local` は初回に必ず要る。** 画面もAPIもD1/R2から読み、46路線の診断書は
+ビルド時に事前生成されるので、ローカルD1が空だとビルドが落ちる。`.wrangler/` は
+gitignoreなのでクローン直後は空。診断は回さずコミット済みの成果物を書き戻すだけなので、
+ネットワークに繋がっていなくても通る。
 
 `pnpm test` が全部緑なら、診断エンジンのTypeScript移植は成功している。
 
@@ -41,7 +47,8 @@ packages/core/   診断エンジン(UI非依存TS。ブラウザ/Node両対応)
 packages/db/     Drizzleスキーマ(Cloudflare D1)
 batch/           データ更新バッチ(GTFS取得→標高→診断→R2/D1)
 data/gtfs_zips/  南信州11フィードのGTFS原本(バッチが取得して更新)
-data/bundle/     バッチの生成物(46路線の診断結果・プロファイル・ダイヤ)
+data/bundle/     バッチの生成物8ファイル(46路線の診断結果・プロファイル・ダイヤ +
+                 d1.json = ローカルD1/R2を復元するための版・距離・勾配)
 docs/            企画書・要件定義・検証プロトタイプ・サンプルCSV
 apps/web/public/about/  /about に載せる図版(46路線マップのSVG・画面写真)
 ```
@@ -79,6 +86,18 @@ npx wrangler d1 create regen-db        # → database_id を apps/web/wrangler.j
 npx wrangler r2 bucket create regen-bundles
 pnpm --filter web run deploy   # ルートで実行。`run` を省くとpnpm組み込みのdeployが動いてしまう
 ```
+
+## CI / デプロイ
+
+| ワークフロー | トリガ | 内容 |
+|---|---|---|
+| `ci` | PR / main以外へのpush | 型チェック・Lint・テスト |
+| `deploy` | **mainへのpush** / 手動 | `ci` → ローカルD1/R2をシード → build → 本番D1マイグレーション → deploy → 疎通確認 |
+| `batch` | 週次(月曜05:00 JST)/ 手動 | GTFS取得→診断→R2/D1。更新があれば `data/bundle/` をmainに戻し、deployを起こす |
+
+**mainにpushすれば本番に出る。** 手でデプロイしたいときだけ `pnpm --filter web run deploy`
+(`run` を省くとpnpm組み込みの `deploy` が動いてしまう)。
+CIが落ちているとデプロイのジョブはスキップされる。
 
 ## データ出典
 
