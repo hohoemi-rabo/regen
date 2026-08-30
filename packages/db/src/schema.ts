@@ -17,6 +17,13 @@ export const routes = sqliteTable("routes", {
   climbM: real("climb_m").notNull(),
   maxGrade: real("max_grade").notNull(),
   kwhPerKm: real("kwh_per_km").notNull(),
+  /**
+   * 力行・回生 [kWh/片道]。実測補正(F-4)を一覧・マップに当てるために要る。
+   * 補正後kWh = kDrive×(力行−回生) + kAux×空調 で、空調は 電費×距離 から逆算できる。
+   * これがあると標高プロファイルを読まずに46路線を再計算できる(要件§3.2を崩さない)
+   */
+  tractionKwh: real("traction_kwh").notNull().default(0),
+  regenKwh: real("regen_kwh").notNull().default(0),
   roundtripBattPct: real("roundtrip_batt_pct").notNull(),
   dailyKwh: real("daily_kwh").notNull(),
   extraCharges: integer("extra_charges").notNull(),

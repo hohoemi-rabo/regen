@@ -15,6 +15,13 @@
       "when": 1788067983952,
       "tag": "0001_silky_matthew_murdock",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788071710770,
+      "tag": "0002_closed_stick",
+      "breakpoints": true
     }
   ]
 }

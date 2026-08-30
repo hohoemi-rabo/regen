@@ -28,6 +28,11 @@ export default async function RoutesPage() {
     trips: r.tripsPerDay,
     daily: r.dailyKwh,
     charges: r.extraCharges,
+    etr: r.tractionKwh,
+    regen: r.regenKwh,
+    ew: r.kwhPerKm * (r.lengthM / 1000),
+    // D1の max_grade は分数。judge() と同じ単位なのでそのまま渡す
+    mg: r.maxGrade,
   }));
 
   return (

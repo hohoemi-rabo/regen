@@ -13,7 +13,7 @@ import {
  * パイプライン自体の版。
  * パラメータは同じでも成果物の作り方(間引き・丸め・収録項目)を変えたときに上げる。
  */
-export const PIPELINE_REV = 1;
+export const PIPELINE_REV = 3;
 
 export function paramsSnapshot() {
   return {

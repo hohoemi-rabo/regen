@@ -40,6 +40,9 @@ export interface RouteRecord {
   /** 分数(0.106 = 10.6%)。D1には分数で入っている */
   maxGrade: number;
   kwhPerKm: number;
+  /** 力行・回生 [kWh/片道]。実測補正(F-4)を一覧・マップで当てるのに使う */
+  tractionKwh: number;
+  regenKwh: number;
   roundtripBattPct: number;
   dailyKwh: number;
   extraCharges: number;
@@ -58,6 +61,8 @@ const selectRoute = {
   climbM: routes.climbM,
   maxGrade: routes.maxGrade,
   kwhPerKm: routes.kwhPerKm,
+  tractionKwh: routes.tractionKwh,
+  regenKwh: routes.regenKwh,
   roundtripBattPct: routes.roundtripBattPct,
   dailyKwh: routes.dailyKwh,
   extraCharges: routes.extraCharges,

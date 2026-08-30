@@ -8,3 +8,4 @@ export * from "./diagnose";
 export * from "./vehicles";
 export * from "./simulate";
 export * from "./scenario";
+export * from "./calibration";

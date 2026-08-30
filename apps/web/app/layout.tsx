@@ -3,6 +3,7 @@ import { Inter, Noto_Sans_JP } from "next/font/google";
 import "./globals.css";
 import { SiteHeader } from "./_components/SiteHeader";
 import { SiteFooter } from "./_components/SiteFooter";
+import { CalibrationProvider } from "./_components/calibration/CalibrationProvider";
 
 // ウェイトは400/600の2段のみ(DESIGN §3.1)
 const inter = Inter({
@@ -30,9 +31,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ja" className={`${inter.variable} ${notoSansJP.variable}`}>
       <body className="flex min-h-screen flex-col bg-page font-sans text-body text-ink-1 antialiased">
-        <SiteHeader />
-        {children}
-        <SiteFooter />
+        {/* じぶん補正(F-4)はブラウザのローカル保存。childrenはServer Componentのまま通る */}
+        <CalibrationProvider>
+          <SiteHeader />
+          {children}
+          <SiteFooter />
+        </CalibrationProvider>
       </body>
     </html>
   );

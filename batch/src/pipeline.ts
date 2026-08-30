@@ -108,6 +108,12 @@ export interface Bundle {
   feeds: FeedRow[];
   /** 路線ID -> D1 routes.length_m に入れる実長 [m] */
   lengthM: Record<string, number>;
+  /**
+   * 路線ID -> 最急勾配(**分数**、丸めない)。
+   * judge() のしきい値が 0.1 ちょうどなので、%へ丸めた値から戻すと 9.95% が 10% になり
+   * 判定が変わってしまう。D1とマップにはこの精度のまま入れる
+   */
+  maxGrade: Record<string, number>;
   /** 路線ID -> 所属フィードID */
   feedOf: Record<string, string>;
 }
@@ -344,6 +350,7 @@ export async function buildBundle(
   const profiles: Record<string, RouteProfile> = {};
   const profiles25: Record<string, number[]> = {};
   const lengthM: Record<string, number> = {};
+  const maxGrade: Record<string, number> = {};
   const feedOf: Record<string, string> = {};
 
   for (let k = 0; k < perRoute.length; k++) {
@@ -390,6 +397,11 @@ export async function buildBundle(
         id, name: route.name, agency: route.agency, verdict: d.verdict,
         accuracy: route.mode, L: km, trips: route.trips,
         batt: Math.round(d.roundtripBattPct), charges: d.extraCharges,
+        // 実測補正(F-4)をマップで当てるための値。
+        // 補正後kWh = kDrive×(etr−regen) + kAux×空調、空調 = ew −(etr−regen)。
+        // **判定のしきい値に効くので丸めを浅くしない**(mg は分数)
+        etr: +d.tractionKwh.toFixed(4), regen: +d.regenKwh.toFixed(4),
+        ew: +d.eWinterKwh.toFixed(4), mg: +d.gmax.toFixed(6),
       },
       geometry: {
         type: "LineString",
@@ -421,13 +433,14 @@ export async function buildBundle(
     profiles25[id] = d.elev.map((v) => Math.round(v * 100) / 100);
     // D1 routes.length_m は生の経路長。判定に使う (n-1)*STEP とはサブメートルの差がある
     lengthM[id] = route.pathLenM;
+    maxGrade[id] = d.gmax;
     feedOf[id] = feedId;
   }
 
   return {
     summary,
     geojson: { type: "FeatureCollection", features },
-    profiles, profiles25, schedules, agencies, feeds, lengthM, feedOf,
+    profiles, profiles25, schedules, agencies, feeds, lengthM, maxGrade, feedOf,
   };
 }
 

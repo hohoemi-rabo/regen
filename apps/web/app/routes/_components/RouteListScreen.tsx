@@ -9,6 +9,9 @@ import { FilterRow } from "@/app/_components/FilterRow";
 import { VerdictChip } from "@/app/_components/VerdictChip";
 import { isVerdict, VERDICTS, type Verdict } from "@/app/_components/verdict";
 import { formatInt, formatKm, formatKwhPerKm, formatNumber } from "@/lib/format";
+import { calibrateRoute } from "@/lib/calibrated";
+import { useActiveCalibration } from "@/app/_components/calibration/CalibrationProvider";
+import { CalibrationBanner } from "@/app/_components/calibration/CalibrationBanner";
 
 export type RouteRow = {
   id: string;
@@ -24,6 +27,12 @@ export type RouteRow = {
   trips: number;
   daily: number;
   charges: number;
+  /** 片道の力行・回生・冬電力量 [kWh]。じぶん補正(F-4)の再計算に使う */
+  etr: number;
+  regen: number;
+  ew: number;
+  /** 最急勾配(分数)。判定のしきい値に効くので、%へ丸めた gmax から戻さない */
+  mg: number;
 };
 
 const ACCURACY_LABELS: Record<string, string> = {
@@ -163,11 +172,44 @@ export function RouteListScreen({ rows }: { rows: RouteRow[] }) {
   const router = useRouter();
   const [filters, setFilters] = useState<Record<string, string>>(EMPTY);
   const [sort, setSort] = useState<SortState>({ key: "daily", dir: "desc" });
+  const calib = useActiveCalibration();
 
   const agencies = useMemo(() => [...new Set(rows.map((r) => r.agency))], [rows]);
 
+  /** じぶん補正を当てた行。無補正なら元の値がそのまま返る(lib/calibrated.ts) */
+  const calibrated = useMemo(
+    () =>
+      rows.map((r) => {
+        const f = calibrateRoute(
+          {
+            verdict: r.verdict,
+            kwhPerKm: r.kwh,
+            roundtripBattPct: r.batt,
+            dailyKwh: r.daily,
+            extraCharges: r.charges,
+            tractionKwh: r.etr,
+            regenKwh: r.regen,
+            winterKwh: r.ew,
+            lengthKm: r.L,
+            tripsPerDay: r.trips,
+            maxGrade: r.mg,
+          },
+          calib
+        );
+        return {
+          ...r,
+          kwh: f.kwhPerKm,
+          batt: f.roundtripBattPct,
+          daily: f.dailyKwh,
+          charges: f.extraCharges,
+          verdict: f.verdict,
+        };
+      }),
+    [rows, calib]
+  );
+
   const visible = useMemo(() => {
-    const filtered = rows.filter(
+    const filtered = calibrated.filter(
       (r) =>
         (filters.agency === "" || r.agency === filters.agency) &&
         (filters.verdict === "" || r.verdict === filters.verdict) &&
@@ -183,7 +225,7 @@ export function RouteListScreen({ rows }: { rows: RouteRow[] }) {
       }
       return sign * (va - vb);
     });
-  }, [rows, filters, sort]);
+  }, [calibrated, filters, sort]);
 
   const toggleSort = (key: string) => {
     setSort((prev) => {
@@ -200,6 +242,15 @@ export function RouteListScreen({ rows }: { rows: RouteRow[] }) {
       COLUMNS.map((c) => csvEscape(c.csvHeader)).join(","),
       ...visible.map((r) => COLUMNS.map((c) => csvEscape(c.csvValue(r))).join(",")),
     ];
+    // 補正済みの表を配ったあとで「どの前提の数字か」を辿れるようにする
+    if (calib.kDrive !== 1 || calib.kAux !== 1) {
+      lines.push("");
+      lines.push(
+        csvEscape(
+          `じぶん補正 適用: 車両効率 ×${calib.kDrive.toFixed(2)} / 空調 ×${calib.kAux.toFixed(2)}`
+        )
+      );
+    }
     // BOM付きUTF-8(Excelでの文字化け防止)
     const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -212,6 +263,7 @@ export function RouteListScreen({ rows }: { rows: RouteRow[] }) {
 
   return (
     <div>
+      <CalibrationBanner />
       <FilterRow
         filters={[
           {

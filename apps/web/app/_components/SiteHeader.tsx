@@ -11,6 +11,9 @@ export function SiteHeader() {
           <Link href="/routes" className="text-ink-2 transition-colors duration-fast hover:text-accent">
             路線一覧
           </Link>
+          <Link href="/calibrate" className="text-ink-2 transition-colors duration-fast hover:text-accent">
+            じぶん補正
+          </Link>
           <Link href="/about" className="text-ink-2 transition-colors duration-fast hover:text-accent">
             このサービスについて
           </Link>

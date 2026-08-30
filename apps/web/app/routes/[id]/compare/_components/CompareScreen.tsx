@@ -16,6 +16,8 @@ import {
   type Vehicle,
 } from "@regen/core";
 import { ShareButton } from "./ShareButton";
+import { useActiveCalibration } from "@/app/_components/calibration/CalibrationProvider";
+import { CalibrationBanner } from "@/app/_components/calibration/CalibrationBanner";
 import { formatInt, formatKm, formatNumber } from "@/lib/format";
 import { Bar, DefinitionRow, Section } from "../../_components/sections";
 import { NumberField } from "./NumberField";
@@ -87,10 +89,13 @@ export function CompareScreen({
   const vehB = vehicles.find((v) => v.id === bId) ?? initialB;
   const lengthKm = lengthM / 1000;
 
+  // じぶん補正(F-4)。無補正なら恒等なので、これまでと同じ値になる
+  const calib = useActiveCalibration();
+
   const sim = useMemo(() => {
     const t0 = performance.now();
     const input: SimInput = {
-      elev: elev25, lengthM, gmax, tripsPerDay, arrivals, auxW, yenPerKwh, yenPerLiterDiesel,
+      elev: elev25, lengthM, gmax, tripsPerDay, arrivals, auxW, yenPerKwh, yenPerLiterDiesel, calib,
     };
     const ra = simulateVehicle(vehA, { massKg: a.massKg, batteryKwh: a.batteryKwh }, input);
     const rb = simulateVehicle(vehB, { massKg: b.massKg, batteryKwh: b.batteryKwh }, input);
@@ -155,6 +160,8 @@ export function CompareScreen({
         <span className="mx-1">/</span>
         車両比較
       </nav>
+
+      <CalibrationBanner />
 
       <h1 className="text-page-title">車両比較 — {routeName}</h1>
       <p className="mt-1 text-aux text-ink-2">

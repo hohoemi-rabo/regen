@@ -5,6 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import { FilterRow } from "@/app/_components/FilterRow";
 import type { Verdict } from "@/app/_components/verdict";
 import { VERDICTS } from "@/app/_components/verdict";
+import { isIdentity } from "@regen/core";
+import { calibrateRoute } from "@/lib/calibrated";
+import { useActiveCalibration } from "@/app/_components/calibration/CalibrationProvider";
+import { CalibrationBanner } from "@/app/_components/calibration/CalibrationBanner";
 import { Legend } from "./Legend";
 import { RouteSummary } from "./RouteSummary";
 import {
@@ -32,6 +36,7 @@ export function MapScreen() {
   const [filters, setFilters] = useState<MapFilters>(EMPTY_FILTERS);
   const [selected, setSelected] = useState<RouteProps | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const calib = useActiveCalibration();
 
   // R2の現行バンドル(bundles/<version>/routes.json)をWorker経由で取る。
   // どの版を返すかは D1 の bundles.is_current が決めるので、ここは版を意識しない
@@ -63,19 +68,58 @@ export function MapScreen() {
 
   if (loadError) throw loadError; // app/error.tsx で処理
 
+  /**
+   * じぶん補正(F-4)を当てたfeature。無補正なら元のオブジェクトをそのまま返すので、
+   * 参照が変わらず MapLibre のソース更新も起きない。
+   */
+  const shown = useMemo(() => {
+    if (!data || isIdentity(calib)) return data;
+    return {
+      ...data,
+      features: data.features.map((f) => {
+        const p = f.properties;
+        const c = calibrateRoute(
+          {
+            verdict: p.verdict,
+            kwhPerKm: p.ew / p.L,
+            roundtripBattPct: p.batt,
+            dailyKwh: p.ew * p.trips,
+            extraCharges: p.charges,
+            tractionKwh: p.etr,
+            regenKwh: p.regen,
+            winterKwh: p.ew,
+            lengthKm: p.L,
+            tripsPerDay: p.trips,
+            maxGrade: p.mg,
+          },
+          calib
+        );
+        return {
+          ...f,
+          properties: {
+            ...p,
+            batt: Math.round(c.roundtripBattPct),
+            charges: c.extraCharges,
+            verdict: c.verdict as Verdict,
+          },
+        };
+      }),
+    } satisfies RouteCollection;
+  }, [data, calib]);
+
   const agencies = useMemo(() => {
-    if (!data) return [];
-    return [...new Set(data.features.map((f) => f.properties.agency))];
-  }, [data]);
+    if (!shown) return [];
+    return [...new Set(shown.features.map((f) => f.properties.agency))];
+  }, [shown]);
 
   const counts = useMemo(() => {
     const c: Record<Verdict, number> = { 適: 0, 条件付き: 0, 要検討: 0 };
-    if (!data) return c;
-    for (const f of data.features) {
+    if (!shown) return c;
+    for (const f of shown.features) {
       if (matchesFilters(f.properties, filters)) c[f.properties.verdict] += 1;
     }
     return c;
-  }, [data, filters]);
+  }, [shown, filters]);
 
   const changeFilter = (key: string, value: string) => {
     const next = { ...filters, [key]: value };
@@ -87,6 +131,9 @@ export function MapScreen() {
   return (
     <div className="flex h-[calc(100dvh-48px)] min-h-[480px] flex-col">
       <div className="border-b border-line bg-surface px-4 py-2">
+        <div className="[&>div]:mb-2">
+          <CalibrationBanner />
+        </div>
         <FilterRow
           filters={[
             {
@@ -116,9 +163,9 @@ export function MapScreen() {
         />
       </div>
       <div className="relative min-h-0 flex-1">
-        {data ? (
+        {shown ? (
           <MapView
-            data={data}
+            data={shown}
             filters={filters}
             selectedId={selected?.id ?? null}
             onSelect={setSelected}
@@ -130,7 +177,7 @@ export function MapScreen() {
         <div className="absolute bottom-8 left-3 z-10">
           <Legend counts={counts} />
         </div>
-        {isMobile && selected && (
+        {isMobile && selected && shown && (
           <div className="absolute inset-x-0 bottom-0 z-20 rounded-t-card border-t border-line bg-surface shadow-card">
             <button
               type="button"
@@ -140,7 +187,7 @@ export function MapScreen() {
             >
               ✕
             </button>
-            <RouteSummary route={selected} />
+            <RouteSummary route={shown.features.find((f) => f.properties.id === selected.id)?.properties ?? selected} />
           </div>
         )}
       </div>

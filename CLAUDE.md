@@ -29,7 +29,7 @@
 ```bash
 pnpm install         # 依存インストール(ルートで)
 pnpm dev             # apps/web を next dev で起動
-pnpm test            # 診断エンジンのゴールデンテスト
+pnpm test            # ゴールデンテスト(core)+ apps/web の単体テスト
 pnpm batch           # F-8バッチ: GTFS取得→診断→R2/D1(ローカル)。更新が無ければ即終了
 pnpm batch -- --remote          # 本番のD1/R2へ公開
 pnpm batch -- --allow-changes   # 公開値の変化を承認して公開(既定は変化を見つけたら止まる)
@@ -153,14 +153,15 @@ resample(25m) → fillNulls → smooth(175m) →
 
 ## 現状(2026-08-30)
 
-- 完了: 診断エンジンTS移植 + ゴールデンテスト(86件通過)、DBスキーマ、
-  企画書v0.2 / 要件定義v1.0 / DESIGN.md v1.0、**チケット00〜08**
+- 完了: 診断エンジンTS移植 + テスト(core 104件 / web 17件)、DBスキーマ、
+  企画書v0.2 / 要件定義v1.0 / DESIGN.md v1.0、**チケット00〜09**
   (00トークン / 01共通UI / 02 F-1マップ / 03 F-5一覧 / 04 F-2診断書 / 05 F-3車両比較 /
-  06 D1・R2・API / 07 F-6シナリオ共有 / 08 F-8データ更新バッチ。詳細は各チケット参照)
+  06 D1・R2・API / 07 F-6シナリオ共有 / 08 F-8データ更新バッチ / 09 F-4じぶん補正。
+  詳細は各チケット参照)
 - **D1 `regen-db`(98dc019f-ee56-4e89-9ff5-4ad0062cf0dd)と R2 `regen-bundles` は作成・投入済み**
   (ローカル・本番とも)。要件§11-1〜3は完了。§11-4以降(GitHub Actionsのシークレット等)はチケット12
 - GitHub: https://github.com/hohoemi-rabo/regen (main直コミット・直push)
-- **次: チケット09(F-4 実測補正 `/calibrate`)。** 以降は docs/tickets/README.md 参照
+- **次: チケット10(F-7 管理画面。Better Auth・車両マスタCRUD・バッチ状況)。** 以降は docs/tickets/README.md 参照
 - **本番D1/R2は新版 `20260818-c2bb49ee` に切替済み**(2026-08-30、GitHub Actionsの手動実行で公開)。
   要件§11-4のシークレットも登録済みで、週次(月曜05:00 JST)の自動実行が生きている。
   **ワークフローは Node 22。** pnpm 11 が Node 22.13以上を要求する(Node 20では setup で落ちる)
@@ -189,6 +190,10 @@ resample(25m) → fillNulls → smooth(175m) →
   `pipeline.ts`(GTFS+標高→`diagnose()`→ map.geojson / routes_summary.json / profiles.json /
   profiles25.json / schedules.json / agencies.json / feeds.json)/
   `verify.ts`(変化ガード)/ `publish.ts`(R2→D1→版切替、batch_runs)/ `cf.ts`(wrangler越しのD1・R2)
+- **じぶん補正(F-4)** `packages/core/calibration.ts`(当てはめと適用)/
+  `apps/web/lib/calibrated.ts`(路線1件への適用)/
+  `apps/web/app/_components/calibration/`(localStorageの保管庫と「適用中」の帯)/
+  `apps/web/app/calibrate/`(画面・CSVパーサ)
 - **路線ID**は `feed_route_id`(例 `Minamishinshuseibu1_13`)で全データ共通
 
 ### データ更新バッチの作法(チケット08で確定)
@@ -212,6 +217,24 @@ resample(25m) → fillNulls → smooth(175m) →
   Actionsは `actions/cache` でこのディレクトリを持ち回す
 - **喬木村フィードは2026-12-15期限。** 差し替わると変化ガードで週次実行が落ちるので、
   差分を見てから手動実行(`workflow_dispatch` の `allow_changes`)で通す
+
+### じぶん補正の作法(チケット09で確定)
+
+- **CSVをサーバーに送らない。** `apps/web/app/calibrate/` のクライアント側
+  (`_components/` と `lib/`)に `fetch` / `use server` / `FormData` / `sendBeacon` を書かない。
+  変更したら `grep -rn "fetch(\|use server" apps/web/app/calibrate/` が
+  `page.tsx` の `@/lib/data`(路線一覧の読み取り)以外に当たらないことを確認する
+- **補正のかけ方は `補正後kWh = kDrive×(力行−回生) + kAux×空調`。**
+  この形なので**標高プロファイルを読まずに**再計算でき、一覧46行でもマップでも即座に効く
+- **無補正のときは再計算しない**(`calibrateRoute` が保存値を素通しする)。
+  再計算して同じ値になるはずでも、丸めの差で1つでも動くとバッチ・D1・共有ページと食い違う
+- **`judge()` のしきい値は `max_grade < 0.1`。%へ丸めた勾配を戻して渡さない。**
+  9.95% を 10% に丸めると判定が変わる(D1の `max_grade` とマップの `mg` は分数のまま入れてある)
+- **`/s/[id]` 共有シナリオには補正を当てない。** 保存時の値を凍結する記録なので、
+  閲覧者のローカル設定で数字が動いてはいけない(F-6の存在意義)
+- 診断書は本体が `_components/DiagnosisSheet.tsx`(Client)。**25m配列は渡さない**
+  (補正の再計算はスカラーだけで足りる)。サーバーが返すHTMLは常に無補正で、
+  localStorageを読んだあとに差し替える(ハイドレーション不一致を避ける)
 
 ### 公開の書き込み口(チケット07で確定)
 

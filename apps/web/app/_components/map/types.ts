@@ -1,7 +1,7 @@
 import type { Feature, FeatureCollection, LineString } from "geojson";
 import type { Verdict } from "@/app/_components/verdict";
 
-/** R2 `bundles/<version>/routes.json` のFeature properties(batch/src/seed-map.ts が生成) */
+/** R2 `bundles/<version>/routes.json` のFeature properties(batch/src/pipeline.ts が生成) */
 export type RouteProps = {
   id: string;
   name: string;
@@ -17,6 +17,12 @@ export type RouteProps = {
   batt: number;
   /** 追加充電回数/日 */
   charges: number;
+  /** 片道の力行・回生・冬電力量 [kWh]。じぶん補正(F-4)の再計算に使う */
+  etr: number;
+  regen: number;
+  ew: number;
+  /** 最急勾配(**分数**)。判定のしきい値 0.1 に効くので丸めた%を使わない */
+  mg: number;
 };
 
 export type RouteFeature = Feature<LineString, RouteProps>;

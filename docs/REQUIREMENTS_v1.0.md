@@ -288,6 +288,8 @@ CREATE TABLE routes (
   climb_m REAL NOT NULL,
   max_grade REAL NOT NULL,
   kwh_per_km REAL NOT NULL,
+  traction_kwh REAL NOT NULL DEFAULT 0,  -- 片道の力行 [kWh]。F-4の補正を一覧・マップに当てるのに使う
+  regen_kwh REAL NOT NULL DEFAULT 0,     -- 片道の回生 [kWh]
   roundtrip_batt_pct REAL NOT NULL,
   daily_kwh REAL NOT NULL,
   extra_charges INTEGER NOT NULL,

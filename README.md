@@ -19,7 +19,7 @@ npm install -g pnpm
 
 ```bash
 pnpm install
-pnpm test        # ゴールデンテスト: 南信州46路線の診断結果がPython版と一致することを確認
+pnpm test        # ゴールデンテスト(46路線がPython版と一致)+ CSVパーサ等の単体テスト
 pnpm dev         # http://localhost:3000 (仮トップページ: 実診断データの一覧が出る)
 ```
 
@@ -39,7 +39,7 @@ packages/db/     Drizzleスキーマ(Cloudflare D1)
 batch/           データ更新バッチ(GTFS取得→標高→診断→R2/D1)
 data/gtfs_zips/  南信州11フィードのGTFS原本(バッチが取得して更新)
 data/bundle/     バッチの生成物(46路線の診断結果・プロファイル・ダイヤ)
-docs/            企画書・要件定義・検証プロトタイプ
+docs/            企画書・要件定義・検証プロトタイプ・サンプルCSV
 ```
 
 ## バッチを動かす

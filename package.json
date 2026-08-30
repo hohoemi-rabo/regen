@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "pnpm --filter web dev",
     "build": "pnpm --filter web build",
-    "test": "pnpm --filter @regen/core test",
+    "test": "pnpm --filter @regen/core test && pnpm --filter web test",
     "batch": "pnpm --filter @regen/batch refresh"
   },
   "packageManager": "pnpm@11.24.0",

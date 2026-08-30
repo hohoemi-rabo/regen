@@ -3,6 +3,7 @@ import { energyForProfile } from "./energy";
 import { ChargingStop, chargingPlan } from "./charging";
 import { judge, Verdict } from "./diagnose";
 import { Powertrain, Vehicle, toVehicleParams } from "./vehicles";
+import { auxKwhOf, calibratedKwh, type Calibration } from "./calibration";
 
 /**
  * F-3車両比較の再計算(ブラウザ内で実行される)。
@@ -26,6 +27,11 @@ export interface SimInput {
   auxW: number;
   yenPerKwh: number;
   yenPerLiterDiesel: number;
+  /**
+   * 実測補正(F-4)。省略すると無補正で、現在と完全に同じ値になる。
+   * ブラウザのローカル保存にとどまる値なので、サーバー側の事前計算には入れない。
+   */
+  calib?: Calibration | null;
 }
 
 export interface SimResult {
@@ -65,7 +71,8 @@ export function simulateVehicle(
 
   if (v.powertrain === "diesel") {
     // 燃費[km/L]は車両マスタの値。ディーゼルはエネルギー積算をしない(実測燃費のほうが確かなため)
-    const kmPerL = v.fuelKmPerL ?? 0;
+    // 実測補正があればそちらを使う(実燃費のほうが車両マスタの公称値より確か)
+    const kmPerL = input.calib?.kmPerL ?? v.fuelKmPerL ?? 0;
     const litersPerTrip = kmPerL > 0 ? lengthKm / kmPerL : 0;
     const dayLiters = litersPerTrip * input.tripsPerDay;
     return {
@@ -81,7 +88,13 @@ export function simulateVehicle(
   }
 
   const e = energyForProfile(input.elev, cruiseSpeedKmh(input.lengthM), input.auxW, veh, STEP);
-  const kwhPerTrip = e.totalKwh;
+  // 力行・回生・空調の3項に係数を掛ける(calibration.ts)。無補正なら e.totalKwh と一致する
+  const kwhPerTrip = calibratedKwh(
+    e.tractionKwh,
+    e.regenKwh,
+    auxKwhOf(e.totalKwh, e.tractionKwh, e.regenKwh),
+    input.calib
+  );
   const dayKwh = kwhPerTrip * input.tripsPerDay;
   const usableKwh = veh.batteryKwh * veh.usableRatio;
   // charging.ts は片道が使用可能容量を超える車両を表現できない。先に成立性を判定する

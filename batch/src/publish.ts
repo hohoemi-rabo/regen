@@ -117,15 +117,18 @@ function buildSql(b: Bundle, version: string, createdAt: number): string[] {
     if (!agencyId) throw new Error(`agencyが引けません: ${r.id}`);
     sql.push(
       `INSERT INTO routes (id, agency_id, name, length_m, trips_per_day, climb_m, max_grade, ` +
-      `kwh_per_km, roundtrip_batt_pct, daily_kwh, extra_charges, verdict, accuracy, corrected_m, ` +
-      `bundle_key, updated_at) VALUES (` +
+      `kwh_per_km, traction_kwh, regen_kwh, roundtrip_batt_pct, daily_kwh, extra_charges, ` +
+      `verdict, accuracy, corrected_m, bundle_key, updated_at) VALUES (` +
       `${q(r.id)}, ${q(agencyId)}, ${q(r.name)}, ${n(b.lengthM[r.id])}, ${n(r.trips)}, ${n(r.up)}, ` +
-      // routes_summary の gmax は%表記。D1には分数で入れる(judge()と同じ単位に揃える)
-      `${n(r.gmax / 100)}, ${n(r.kwh)}, ${n(r.batt)}, ${n(r.daily)}, ${n(r.charges)}, ` +
+      // 判定は max_grade < 0.1 で決まるので、%へ丸めた値から戻さず分数のまま入れる
+      // (9.95% を 10% に丸めると判定が変わる)
+      `${n(b.maxGrade[r.id])}, ${n(r.kwh)}, ${n(r.Etr)}, ${n(r.regen)}, ` +
+      `${n(r.batt)}, ${n(r.daily)}, ${n(r.charges)}, ` +
       `${q(r.verdict)}, ${q(r.mode)}, ${n(r.corr)}, ${q(profileKey(version, r.id))}, ${n(createdAt)}) ` +
       `ON CONFLICT(id) DO UPDATE SET agency_id=excluded.agency_id, name=excluded.name, ` +
       `length_m=excluded.length_m, trips_per_day=excluded.trips_per_day, climb_m=excluded.climb_m, ` +
       `max_grade=excluded.max_grade, kwh_per_km=excluded.kwh_per_km, ` +
+      `traction_kwh=excluded.traction_kwh, regen_kwh=excluded.regen_kwh, ` +
       `roundtrip_batt_pct=excluded.roundtrip_batt_pct, daily_kwh=excluded.daily_kwh, ` +
       `extra_charges=excluded.extra_charges, verdict=excluded.verdict, accuracy=excluded.accuracy, ` +
       `corrected_m=excluded.corrected_m, bundle_key=excluded.bundle_key, updated_at=excluded.updated_at;`
