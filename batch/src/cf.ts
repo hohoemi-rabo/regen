@@ -13,6 +13,33 @@ const execFileAsync = promisify(execFile);
 
 const DB = "regen-db";
 const BUCKET = "regen-bundles";
+/**
+ * 一時的な通信エラーで実行全体を落とさない。
+ * 48オブジェクトを直列に上げるあいだ、1回でも fetch failed が出れば全部やり直しになる
+ * (週次のActionsでは特に痛い)。R2/D1への書き込みは冪等なので、そのまま再試行してよい。
+ */
+const RETRIES = 3;
+
+const isTransient = (e: unknown) =>
+  /fetch failed|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|503|502|429/i.test(
+    e instanceof Error ? `${e.message}${(e as { stderr?: string }).stderr ?? ""}` : String(e)
+  );
+
+async function withRetry<T>(label: string, fn: () => Promise<T> | T): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= RETRIES; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      if (attempt === RETRIES || !isTransient(e)) break;
+      const waitMs = 1000 * 2 ** (attempt - 1);
+      console.log(`    再試行 ${attempt}/${RETRIES - 1}: ${label}(${waitMs}ms待機)`);
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+  }
+  throw lastErr;
+}
 
 export interface CfTarget {
   root: string;
@@ -49,8 +76,8 @@ export function d1Query<T = Record<string, unknown>>(t: CfTarget, sql: string): 
 }
 
 /** 複数文をまとめて適用する(ファイル経由。--command は長さの上限が読めない) */
-export function d1ExecFile(t: CfTarget, sqlPath: string): void {
-  run(t, ["d1", "execute", DB, "--file", sqlPath, "-y"]);
+export async function d1ExecFile(t: CfTarget, sqlPath: string): Promise<void> {
+  await withRetry("d1 execute", () => run(t, ["d1", "execute", DB, "--file", sqlPath, "-y"]));
 }
 
 async function runAsync(t: CfTarget, args: string[]): Promise<void> {
@@ -61,10 +88,12 @@ async function runAsync(t: CfTarget, args: string[]): Promise<void> {
 }
 
 export async function r2Put(t: CfTarget, key: string, filePath: string): Promise<void> {
-  await runAsync(t, [
-    "r2", "object", "put", `${BUCKET}/${key}`,
-    "--file", filePath, "--content-type", "application/json",
-  ]);
+  await withRetry(key, () =>
+    runAsync(t, [
+      "r2", "object", "put", `${BUCKET}/${key}`,
+      "--file", filePath, "--content-type", "application/json",
+    ])
+  );
 }
 
 /** SQLリテラル。値はすべてバッチが組み立てたものだが、名前に ' が混ざるのでエスケープは要る */

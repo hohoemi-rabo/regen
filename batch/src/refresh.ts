@@ -92,8 +92,8 @@ async function main() {
       const current = currentVersion(t);
       if (version === current) {
         console.log(`==> 更新なし(版 ${version})。再計算しません`);
-        touchFeeds(t, sources.map((s) => s.id), Date.now());
-        finishRun(t, runId, "success", {
+        await touchFeeds(t, sources.map((s) => s.id), Date.now());
+        await finishRun(t, runId, "success", {
           feeds: sources.length, version, message: `更新なし(版 ${version})`,
         });
         return;
@@ -165,7 +165,7 @@ async function main() {
       expiring.length ? `期限接近: ${expiring.join(" / ")}` : "",
       changeNote,
     ].filter(Boolean).join("\n");
-    finishRun(t, runId, "success", {
+    await finishRun(t, runId, "success", {
       feeds: bundle.feeds.length, routes: bundle.summary.length, version, message,
     });
 
@@ -174,7 +174,7 @@ async function main() {
     if (version) console.log(`::version=${version}`);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    finishRun(t, runId, "failed", { message });
+    await finishRun(t, runId, "failed", { message });
     throw e;
   }
 }

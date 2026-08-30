@@ -161,12 +161,12 @@ function buildSql(b: Bundle, version: string, createdAt: number): string[] {
   return sql;
 }
 
-function applySql(t: CfTarget, sql: string[], name: string): void {
+async function applySql(t: CfTarget, sql: string[], name: string): Promise<void> {
   const dir = workDir(t);
   mkdirSync(dir, { recursive: true });
   const p = join(dir, name);
   writeFileSync(p, sql.join("\n") + "\n");
-  d1ExecFile(t, p);
+  await d1ExecFile(t, p);
 }
 
 /** 現在配信中の版(無ければ null) */
@@ -184,15 +184,15 @@ export function startRun(t: CfTarget, startedAt: number): number {
   return rows[0]?.id ?? 0;
 }
 
-export function finishRun(
+export async function finishRun(
   t: CfTarget,
   id: number,
   status: "success" | "failed",
   info: { feeds?: number; routes?: number; version?: string | null; message?: string }
-): void {
+): Promise<void> {
   if (!id) return;
   const msg = (info.message ?? "").slice(0, 2000);
-  applySql(t, [
+  await applySql(t, [
     `UPDATE batch_runs SET finished_at=${n(Date.now())}, status=${q(status)}, ` +
     `feeds=${n(info.feeds ?? null)}, routes=${n(info.routes ?? null)}, ` +
     `version=${q(info.version ?? null)}, message=${q(msg)} WHERE id=${n(id)};`,
@@ -200,10 +200,10 @@ export function finishRun(
 }
 
 /** フィードの取得時刻だけ更新する(更新が無く再計算をしなかったとき) */
-export function touchFeeds(t: CfTarget, feedIds: string[], at: number): void {
+export async function touchFeeds(t: CfTarget, feedIds: string[], at: number): Promise<void> {
   if (!feedIds.length) return;
   const list = feedIds.map((f) => q(f)).join(", ");
-  applySql(t, [`UPDATE feeds SET fetched_at=${n(at)} WHERE id IN (${list});`], "touch.sql");
+  await applySql(t, [`UPDATE feeds SET fetched_at=${n(at)} WHERE id IN (${list});`], "touch.sql");
 }
 
 export interface PublishResult {
@@ -220,11 +220,11 @@ export async function publish(t: CfTarget, b: Bundle, version: string, createdAt
 
   const sql = buildSql(b, version, createdAt);
   console.log(`==> ${t.remote ? "本番" : "ローカル"}D1へ ${sql.length - 1} 文`);
-  applySql(t, sql, "seed.sql");
+  await applySql(t, sql, "seed.sql");
 
   // ここまで来て初めて切り替える(§6.2「切替はD1のメタ更新で行う」)
   console.log(`==> 版を ${version} に切り替え`);
-  applySql(t, [
+  await applySql(t, [
     `UPDATE bundles SET is_current = 0 WHERE version <> ${q(version)};`,
     `UPDATE bundles SET is_current = 1 WHERE version = ${q(version)};`,
   ], "switch.sql");
