@@ -207,6 +207,16 @@ body {
   svg path[fill="var(--accent-weak)"] {
     fill: #cccccc !important;
   }
+  /* 系列2(車両B)は白黒だと系列1と区別できなくなるので破線グレーにする(DESIGN §5.10) */
+  svg polyline[stroke="var(--chart-series2)"],
+  svg line[stroke="var(--chart-series2)"] {
+    stroke: #777777 !important;
+    stroke-dasharray: 6 3;
+  }
+  /* 判定チップ・棒グラフの塗りも白黒で潰れないよう、系列2は網ではなくグレーに */
+  .bg-chart-series2 {
+    background: #777777 !important;
+  }
 }
 
 /* §8 prefers-reduced-motion では遷移を0msに */

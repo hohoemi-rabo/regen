@@ -11,10 +11,11 @@ import {
   cruiseSpeedKmh,
   simulateVehicle,
   tcoSeries,
+  type ScenarioParams,
   type SimInput,
   type Vehicle,
 } from "@regen/core";
-import { Button } from "@/app/_components/Button";
+import { ShareButton } from "./ShareButton";
 import { formatInt, formatKm, formatNumber } from "@/lib/format";
 import { Bar, DefinitionRow, Section } from "../../_components/sections";
 import { NumberField } from "./NumberField";
@@ -41,6 +42,7 @@ export function CompareScreen({
   routeId,
   routeName,
   agency,
+  bundleVersion,
   vehicles,
   elev25,
   lengthM,
@@ -54,6 +56,8 @@ export function CompareScreen({
   routeId: string;
   routeName: string;
   agency: string;
+  /** 配信中の診断バンドル版。保存するシナリオに記録する(F-6) */
+  bundleVersion: string;
   /** 車両マスタ。D1が正本で、サーバーから渡ってくる(チケット06) */
   vehicles: Vehicle[];
   /** 25m間隔の補正後標高。診断書と同じ数値を再現できる唯一の入力 */
@@ -124,6 +128,19 @@ export function CompareScreen({
       ? `車両A のほうが ▼ ${v} ${unit} ${cheaper}`
       : `車両B のほうが ▼ ${v} ${unit} ${dearer}`;
   };
+
+  /**
+   * 保存するシナリオ(F-6)。**選択中の車両スペックを丸ごと控える。**
+   * IDだけ保存すると、後で車両マスタが更新されたときに共有URLの数字が動いてしまう。
+   */
+  const scenarioParams = (): ScenarioParams => ({
+    v: 1,
+    routeId,
+    bundleVersion,
+    a: { vehicle: vehA, massKg: a.massKg, batteryKwh: a.batteryKwh, priceYen: a.priceYen, subsidyYen: a.subsidyYen },
+    b: { vehicle: vehB, massKg: b.massKg, batteryKwh: b.batteryKwh, priceYen: b.priceYen, subsidyYen: b.subsidyYen },
+    auxW, yenPerKwh, yenPerLiterDiesel, annualDays, tcoYears: TCO_YEARS,
+  });
 
   const pick = (id: string) => vehicles.find((v) => v.id === id) ?? initialA;
   const pickA = (id: string) => { setAId(id); setA(defaultsOf(pick(id))); };
@@ -323,12 +340,7 @@ export function CompareScreen({
           </p>
         </Section>
 
-        <div className="flex flex-wrap items-center gap-4">
-          <Button variant="secondary" disabled>
-            この条件を保存して共有
-          </Button>
-          <span className="text-note text-ink-3">共有URLの発行は準備中です(F-6)。</span>
-        </div>
+        <ShareButton params={scenarioParams} />
 
         <div>
           <Link href={`/routes/${routeId}`} className="text-body font-semibold text-accent hover:text-accent-strong">

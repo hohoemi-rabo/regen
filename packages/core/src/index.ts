@@ -7,3 +7,4 @@ export * from "./comparison";
 export * from "./diagnose";
 export * from "./vehicles";
 export * from "./simulate";
+export * from "./scenario";

@@ -321,7 +321,7 @@ CREATE TABLE vehicles (
 
 -- 診断シナリオ(F-6)
 CREATE TABLE scenarios (
-  id TEXT PRIMARY KEY,            -- 推測困難なランダムID
+  id TEXT PRIMARY KEY,            -- 推測困難なランダムID(80ビット乱数のBase32 16文字)
   route_id TEXT NOT NULL REFERENCES routes(id),
   params_json TEXT NOT NULL,      -- 車両・単価・空調などの条件
   created_at INTEGER NOT NULL,
@@ -387,7 +387,7 @@ Better Authが必要とするテーブル(user / session / account / verificatio
 | GET | `/api/routes/[id]` | 路線1件の診断値 | 不要 |
 | GET | `/api/routes/[id]/profile` | 勾配プロファイル(R2から返す) | 不要 |
 | GET | `/api/vehicles` | 公開車両マスタ | 不要 |
-| POST | `/api/scenarios` | 診断シナリオを保存しIDを返す | 不要(レート制限あり) |
+| POST | `/api/scenarios` | 診断シナリオを保存しIDを返す | 不要(レート制限: IPあたり10件/60秒、本文8KBまで) |
 | GET | `/api/scenarios/[id]` | 保存済みシナリオを取得 | 不要 |
 | GET | `/api/map` | マップ用GeoJSON(R2の`routes.json`をWorker経由で配信) | 不要 |
 | GET | `/api/meta` | データ生成日時・出典 | 不要 |

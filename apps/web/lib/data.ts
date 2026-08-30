@@ -3,7 +3,8 @@ import "server-only";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { drizzle } from "drizzle-orm/d1";
 import { and, asc, eq } from "drizzle-orm";
-import { agencies, bundles, feeds, routes, vehicles } from "@regen/db";
+import { agencies, bundles, feeds, routes, scenarios, vehicles } from "@regen/db";
+import { generateScenarioId, type ScenarioParams } from "@regen/core";
 
 /**
  * D1 / R2 への唯一の入口。
@@ -158,4 +159,62 @@ export async function listFeeds() {
 /** マップ用GeoJSON(全路線サマリー+ポリライン)。R2の routes.json をそのまま返す */
 export async function getRoutesGeoJson(version: string): Promise<R2ObjectBody | null> {
   return (await env()).BUNDLES.get(`bundles/${version}/routes.json`);
+}
+
+// ---------------------------------------------------------------------------
+// 診断シナリオ(F-6)。**リポジトリで唯一の書き込み経路**
+// ---------------------------------------------------------------------------
+
+export interface ScenarioRecord {
+  id: string;
+  routeId: string;
+  params: ScenarioParams;
+  /** 保存日時(ミリ秒)。bundles.created_at と単位を揃えてある */
+  createdAt: number;
+}
+
+/**
+ * 条件を保存して共有IDを返す。
+ * params は normalizeScenarioParams を通した正規形だけを渡すこと
+ * (呼び出し側で検証済み。ここでは再検証しない)。
+ * expires_at は null = 無期限。補助金申請に添付したURLが後から切れないようにする。
+ */
+export async function createScenario(params: ScenarioParams): Promise<string> {
+  const id = generateScenarioId();
+  await (await db()).insert(scenarios).values({
+    id,
+    routeId: params.routeId,
+    paramsJson: JSON.stringify(params),
+    createdAt: Date.now(),
+    expiresAt: null,
+  });
+  return id;
+}
+
+export async function getScenario(id: string): Promise<ScenarioRecord | null> {
+  const rows = await (await db())
+    .select()
+    .from(scenarios)
+    .where(eq(scenarios.id, id))
+    .limit(1);
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: row.id,
+    routeId: row.routeId,
+    params: JSON.parse(row.paramsJson) as ScenarioParams,
+    createdAt: row.createdAt,
+  };
+}
+
+/**
+ * 公開書き込み口のレート制限(要件§7)。true なら通してよい。
+ * Cloudflareのレート制限はコロ単位・結果整合の緩い制限で、正確な計数用ではない。
+ * 濫用抑止が目的なので、判定できない場合は通す(可用性を優先)。
+ */
+export async function checkRateLimit(key: string): Promise<boolean> {
+  const limiter = (await env()).SCENARIO_LIMITER;
+  if (!limiter) return true; // バインディング未設定の環境では素通し
+  const { success } = await limiter.limit({ key });
+  return success;
 }
