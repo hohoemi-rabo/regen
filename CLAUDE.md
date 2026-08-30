@@ -153,13 +153,13 @@ resample(25m) → fillNulls → smooth(175m) →
 ## 現状(2026-08-30)
 
 - 完了: 診断エンジンTS移植 + ゴールデンテスト(60件通過)、DBスキーマ、バッチv0、
-  企画書v0.2 / 要件定義v1.0 / DESIGN.md v1.0、**チケット00〜06**
+  企画書v0.2 / 要件定義v1.0 / DESIGN.md v1.0、**チケット00〜07**
   (00トークン / 01共通UI / 02 F-1マップ / 03 F-5一覧 / 04 F-2診断書 / 05 F-3車両比較 /
-  06 D1・R2・API。詳細は各チケット参照)
+  06 D1・R2・API / 07 F-6シナリオ共有。詳細は各チケット参照)
 - **D1 `regen-db`(98dc019f-ee56-4e89-9ff5-4ad0062cf0dd)と R2 `regen-bundles` は作成・投入済み**
   (ローカル・本番とも)。要件§11-1〜3は完了。§11-4以降(GitHub Actionsのシークレット等)はチケット12
 - GitHub: https://github.com/hohoemi-rabo/regen (main直コミット・直push)
-- **次: チケット07(F-6 シナリオ共有 `/s/[id]`)。** 以降は docs/tickets/README.md 参照
+- **次: チケット08(F-8 データ更新バッチ。GTFS取得→診断→R2/D1、GitHub Actions週次)。** 以降は docs/tickets/README.md 参照
 - 各チケットの進捗はチケット内のステータス行とTodoチェックボックスが正(この節は概況のみ)
 - PC表示: 一覧(F-5)・比較(F-3)は最大幅1200px、診断書は900px(DESIGN §4.1)
 - 未確定事項は要件定義書§13(車両マスタの車種、TCOの項目など)
@@ -182,6 +182,17 @@ resample(25m) → fillNulls → smooth(175m) →
   および data/profiles25.json: 25m解像度の補正後標高) / `seed-schedule`(→ data/schedules.json:
   代表運行日ダイヤ。要 `data/gtfs/` 展開)
 - **路線ID**は `feed_route_id`(例 `Minamishinshuseibu1_13`)で全データ共通
+
+### 公開の書き込み口(チケット07で確定)
+
+- **書き込みは `POST /api/scenarios` だけ。** 認証がないので、引数を信用せず
+  `normalizeScenarioParams()`(packages/core)でホワイトリスト詰め替えしてからD1に入れる。
+  **受け取ったJSONをそのまま保存しない**
+- レート制限は `wrangler.jsonc` の `ratelimits` バインディング(`SCENARIO_LIMITER`、IPあたり10件/60秒)。
+  miniflareにローカル実装があるので `preview` でも効く。**IPは制限キーに使うだけで保存しない**
+- **共有シナリオは解決済みの値を丸ごと保存する**(車両スペック・出典・バンドル版)。
+  IDだけ保存すると、車両マスタを直したときに共有URLの数字が動く
+- `/s/[id]` は noindex(要件§5.3)。`generateStaticParams` は使わず revalidate で on-demand ISR
 
 ### D1/R2の作法(チケット06で確定)
 
