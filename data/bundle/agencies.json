@@ -1,5 +1,15 @@
 [
   {
+    "id": "Minamishinshuachi1_4000020204072",
+    "name": "阿智村",
+    "feedId": "Minamishinshuachi1"
+  },
+  {
+    "id": "Minamishinshuiida2_2000020202053",
+    "name": "飯田市",
+    "feedId": "Minamishinshuiida2"
+  },
+  {
     "id": "MinamishinshuIidacity1_2000020202053",
     "name": "飯田市",
     "feedId": "MinamishinshuIidacity1"
@@ -20,24 +30,14 @@
     "feedId": "MinamishinshuOoshika1"
   },
   {
-    "id": "MinamishinshuShinnan1_2100001022519",
-    "name": "信南交通",
-    "feedId": "MinamishinshuShinnan1"
-  },
-  {
-    "id": "Minamishinshuachi1_4000020204072",
-    "name": "阿智村",
-    "feedId": "Minamishinshuachi1"
-  },
-  {
-    "id": "Minamishinshuiida2_2000020202053",
-    "name": "飯田市",
-    "feedId": "Minamishinshuiida2"
-  },
-  {
     "id": "Minamishinshuseibu1_8000020204102",
     "name": "根羽村",
     "feedId": "Minamishinshuseibu1"
+  },
+  {
+    "id": "MinamishinshuShinnan1_2100001022519",
+    "name": "信南交通",
+    "feedId": "MinamishinshuShinnan1"
   },
   {
     "id": "Minamishinshutakagi1_600020204153",

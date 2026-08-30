@@ -36,22 +36,34 @@ pnpm dev         # http://localhost:3000 (仮トップページ: 実診断デー
 apps/web/        Next.js(画面 + Route Handlers) → Cloudflare Workersへデプロイ
 packages/core/   診断エンジン(UI非依存TS。ブラウザ/Node両対応)
 packages/db/     Drizzleスキーマ(Cloudflare D1)
-batch/           診断バンドル生成バッチ(GTFS→標高→診断→JSON)
-data/gtfs_zips/  南信州11フィードのGTFS(取得日: 2026-08-29)
-data/seed/       実診断済みデータ(46路線)。画面開発はまずこれを使う
+batch/           データ更新バッチ(GTFS取得→標高→診断→R2/D1)
+data/gtfs_zips/  南信州11フィードのGTFS原本(バッチが取得して更新)
+data/bundle/     バッチの生成物(46路線の診断結果・プロファイル・ダイヤ)
 docs/            企画書・要件定義・検証プロトタイプ
 ```
 
-## バッチを動かす(任意・画面開発だけなら不要)
+## バッチを動かす
 
-GTFSを展開してから実行する。標高タイルは国土地理院から取得し `.cache/dem/` にキャッシュされる。
+GTFSの取得・展開から公開まで1コマンドで通る。標高タイルは国土地理院から取得し
+`batch/.cache/dem/` にキャッシュされる(2回目以降は取り直さない)。
 
 ```bash
-cd data/gtfs_zips
-for z in *.zip; do d="../gtfs/$(basename "$z" .zip)"; mkdir -p "$d"; unzip -o "$z" -d "$d"; done
-cd ../..
-pnpm batch       # → batch/out/bundles/ に routes.json と profile/*.json が生成される
+pnpm batch                    # 取得 → 診断 → ローカルD1/R2へ公開
+pnpm batch -- --remote        # 本番へ公開
 ```
+
+フィードが更新されていなければ、再計算せず数秒で終わる。
+前回と公開値が変わった場合は**公開せずに差分を出して止まる**ので、内容を確認してから
+`pnpm batch -- --allow-changes` で通す。
+
+ネットワークに触らず成果物だけ作り直したいとき:
+
+```bash
+pnpm batch -- --skip-fetch --no-publish
+```
+
+週次(月曜05:00 JST)の自動実行は `.github/workflows/batch.yml`
+(`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` の登録が必要)。
 
 ## Cloudflareへのデプロイ(後日)
 
@@ -67,4 +79,6 @@ pnpm --filter web run deploy   # ルートで実行。`run` を省くとpnpm組�
 ## データ出典
 
 - GTFSデータリポジトリ(gtfs-data.jp) 南信州11フィード
-- 国土地理院 標高タイル(10mメッシュ)
+  — 取得API: `https://api.gtfs-data.jp/v2/files`(対象は `data/feeds.source.json`)
+- 国土地理院 標高タイル(10mメッシュ、z14)
+  — `https://cyberjapandata.gsi.go.jp/xyz/dem/`

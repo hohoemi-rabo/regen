@@ -1,0 +1,13 @@
+[
+  { "id": "MinamishinshuIidacity1",  "organizationId": "minamishinshu", "feedId": "Minamishinshu-Iidacity-1" },
+  { "id": "MinamishinshuMatsukawa1", "organizationId": "minamishinshu", "feedId": "Minamishinshu-Matsukawa-1" },
+  { "id": "MinamishinshuNanbu1",     "organizationId": "minamishinshu", "feedId": "Minamishinshu-Nanbu-1" },
+  { "id": "MinamishinshuOoshika1",   "organizationId": "minamishinshu", "feedId": "Minamishinshu-Ooshika-1" },
+  { "id": "MinamishinshuShinnan1",   "organizationId": "minamishinshu", "feedId": "Minamishinshu-Shinnan-1" },
+  { "id": "Minamishinshuachi1",      "organizationId": "minamishinshu", "feedId": "Minamishinshu-achi-1" },
+  { "id": "Minamishinshuiida2",      "organizationId": "minamishinshu", "feedId": "Minamishinshu-iida-2" },
+  { "id": "Minamishinshuseibu1",     "organizationId": "minamishinshu", "feedId": "Minamishinshu-seibu-1" },
+  { "id": "Minamishinshutakagi1",    "organizationId": "minamishinshu", "feedId": "Minamishinshu-takagi-1" },
+  { "id": "Minamishinshutakamori1",  "organizationId": "minamishinshu", "feedId": "Minamishinshu-takamori-1" },
+  { "id": "Minamishinshutoyooka1",   "organizationId": "minamishinshu", "feedId": "Minamishinshu-toyooka-1" }
+]

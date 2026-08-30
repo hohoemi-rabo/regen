@@ -65,6 +65,8 @@ export const batchRuns = sqliteTable("batch_runs", {
   feeds: integer("feeds"),
   routes: integer("routes"),
   message: text("message"),
+  /** その実行が発行したバンドル版。更新が無く再計算しなかった実行では null */
+  version: text("version"),
 });
 
 /**
@@ -88,6 +90,10 @@ export const feeds = sqliteTable("feeds", {
   sourceUrl: text("source_url").notNull(),
   feedStart: text("feed_start"),
   feedEnd: text("feed_end"),
+  /** gtfs-data.jp の公開ファイルUUID。これが変わったときだけ再計算する(F-8-1) */
+  fileUid: text("file_uid"),
+  /** 同 file_published_at(ISO8601)。管理画面のフィード鮮度表示に使う */
+  publishedAt: text("published_at"),
   fetchedAt: integer("fetched_at"),
 });
 

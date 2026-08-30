@@ -5,8 +5,9 @@
     "dev": "pnpm --filter web dev",
     "build": "pnpm --filter web build",
     "test": "pnpm --filter @regen/core test",
-    "batch": "pnpm --filter @regen/batch build-bundle"
+    "batch": "pnpm --filter @regen/batch refresh"
   },
+  "packageManager": "pnpm@11.24.0",
   "engines": {
     "node": ">=20"
   }

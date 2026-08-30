@@ -335,7 +335,8 @@ CREATE TABLE batch_runs (
   finished_at INTEGER,
   status TEXT NOT NULL,           -- running / success / failed
   feeds INTEGER, routes INTEGER,
-  message TEXT
+  message TEXT,
+  version TEXT                    -- その実行が発行したバンドル版(更新が無い回はnull)
 );
 
 -- 診断バンドルの版(§6.2の「切替はD1のメタ更新で行う」の受け皿)
@@ -355,6 +356,8 @@ CREATE TABLE feeds (
   name TEXT NOT NULL,
   source_url TEXT NOT NULL,
   feed_start TEXT, feed_end TEXT,
+  file_uid TEXT,                  -- gtfs-data.jp の公開ファイルUUID。更新検出の鍵(F-8-1)
+  published_at TEXT,              -- 同 file_published_at(ISO8601)
   fetched_at INTEGER
 );
 ```
@@ -531,8 +534,9 @@ wrangler d1 migrations apply regen-db --remote  # 本番適用
 1. ~~**Cloudflareアカウントでのログイン**~~: `npx wrangler login` — **完了(2026-08-30)**
 2. ~~**D1データベースの作成**~~ — **完了(2026-08-30、チケット06で代行)**。`regen-db` / `database_id` は `apps/web/wrangler.jsonc` に記入済み
 3. ~~**R2バケットの作成**~~ — **完了(2026-08-30、チケット06で代行)**。`regen-bundles`
-4. **GitHubリポジトリの作成**とActions用シークレット登録: `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`
+4. ~~**GitHubリポジトリの作成**~~(完了)と**Actions用シークレット登録**: `CLOUDFLARE_API_TOKEN`、`CLOUDFLARE_ACCOUNT_ID`
    - APIトークンはCloudflareダッシュボードの「My Profile → API Tokens」から、Workers・D1・R2の編集権限を付けて発行
+   - **未登録**。`.github/workflows/batch.yml`(チケット08で作成)はこれが入るまで動かない
 5. **Better Authのシークレット生成と登録**: `npx wrangler secret put BETTER_AUTH_SECRET`
 6. **管理者アカウントの初期登録**(F-7の初回のみ)
 

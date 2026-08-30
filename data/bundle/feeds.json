@@ -1,0 +1,101 @@
+[
+  {
+    "id": "Minamishinshuachi1",
+    "name": "阿智村",
+    "sourceUrl": "https://www.vill.achi.lg.jp/",
+    "feedStart": "2026-04-01",
+    "feedEnd": "2027-03-31",
+    "fileUid": "1de0723e-e8fb-4e84-adfa-89f413e0c953",
+    "publishedAt": "2026-03-23T13:24:53.666365+09:00"
+  },
+  {
+    "id": "Minamishinshuiida2",
+    "name": "飯田市",
+    "sourceUrl": "https://www.city.iida.lg.jp",
+    "feedStart": "2026-03-21",
+    "feedEnd": "2027-03-31",
+    "fileUid": "e04e15b7-5fe0-4eae-a63c-b6eb867da82d",
+    "publishedAt": "2026-03-04T08:38:50.108706+09:00"
+  },
+  {
+    "id": "MinamishinshuIidacity1",
+    "name": "飯田市",
+    "sourceUrl": "https://www.city.iida.lg.jp",
+    "feedStart": "2026-04-01",
+    "feedEnd": "2027-03-31",
+    "fileUid": "6db38dd7-1e3b-467f-aad1-96e89198c461",
+    "publishedAt": "2026-08-18T15:16:40.320284+09:00"
+  },
+  {
+    "id": "MinamishinshuMatsukawa1",
+    "name": "松川町",
+    "sourceUrl": "https://www.town.matsukawa.lg.jp/",
+    "feedStart": "2026-03-16",
+    "feedEnd": "2027-03-31",
+    "fileUid": "4a44af2f-fc93-4de3-b6e1-4af50544d0e8",
+    "publishedAt": "2026-03-23T13:19:30.412943+09:00"
+  },
+  {
+    "id": "MinamishinshuNanbu1",
+    "name": "下伊那南部地域公共交通対策協議会",
+    "sourceUrl": "https://kk.minami.nagano.jp/",
+    "feedStart": "2026-04-01",
+    "feedEnd": "2027-03-31",
+    "fileUid": "2308403f-978d-4501-91bd-0546dbbd319c",
+    "publishedAt": "2026-04-27T09:53:05.576502+09:00"
+  },
+  {
+    "id": "MinamishinshuOoshika1",
+    "name": "伊那バス",
+    "sourceUrl": "https://www.ibgr.jp/",
+    "feedStart": "2026-04-01",
+    "feedEnd": "2027-03-31",
+    "fileUid": "68142767-ce9d-49f7-b8fd-baf0c0001cf1",
+    "publishedAt": "2026-03-23T13:12:37.213714+09:00"
+  },
+  {
+    "id": "Minamishinshuseibu1",
+    "name": "根羽村",
+    "sourceUrl": "http://www.nebamura.jp/",
+    "feedStart": "2026-07-15",
+    "feedEnd": "2027-04-02",
+    "fileUid": "7354299f-9426-43c0-af10-d6099a1f1acb",
+    "publishedAt": "2026-07-17T08:54:58.415134+09:00"
+  },
+  {
+    "id": "MinamishinshuShinnan1",
+    "name": "信南交通",
+    "sourceUrl": "https://www.shinnan.co.jp/index.html",
+    "feedStart": "2026-04-01",
+    "feedEnd": "2027-03-31",
+    "fileUid": "51140588-5d83-446c-b0e3-0b4baa88d230",
+    "publishedAt": "2026-03-23T14:50:34.065200+09:00"
+  },
+  {
+    "id": "Minamishinshutakagi1",
+    "name": "喬木村",
+    "sourceUrl": "http://www.vill.takagi.nagano.jp/",
+    "feedStart": "2026-04-23",
+    "feedEnd": "2026-12-15",
+    "fileUid": "6d950517-d9bd-4134-abbf-d36bab96edbe",
+    "publishedAt": "2026-04-23T16:49:45.199735+09:00"
+  },
+  {
+    "id": "Minamishinshutakamori1",
+    "name": "高森町",
+    "sourceUrl": "https://www.town.nagano-takamori.lg.jp/index.html",
+    "feedStart": "2026-04-08",
+    "feedEnd": "2027-03-31",
+    "fileUid": "7ec0b4e0-a688-4825-a251-b8403316a822",
+    "publishedAt": "2026-04-08T10:42:05.029650+09:00"
+  },
+  {
+    "id": "Minamishinshutoyooka1",
+    "name": "豊丘村",
+    "sourceUrl": "http://www.vill.nagano-toyooka.lg.jp/",
+    "feedStart": "2026-04-01",
+    "feedEnd": "2027-03-31",
+    "fileUid": "2f794ab9-b35b-4246-ac29-b3e3f7909aa6",
+    "publishedAt": "2026-03-23T13:22:40.972148+09:00"
+  }
+]

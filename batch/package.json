@@ -4,17 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build-bundle": "tsx src/build.ts",
-    "seed-map": "tsx src/seed-map.ts",
-    "seed-schedule": "tsx src/seed-schedule.ts",
-    "seed-profiles": "tsx src/seed-profiles.ts",
-    "seed-agencies": "tsx src/seed-agencies.ts",
-    "seed-cloud": "tsx src/seed-cloud.ts"
+    "refresh": "tsx src/refresh.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@regen/core": "workspace:*"
+    "@regen/core": "workspace:*",
+    "fflate": "^0.8.3"
   },
   "devDependencies": {
+    "@types/node": "^22.20.1",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"
   }

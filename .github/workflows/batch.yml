@@ -1,0 +1,83 @@
+# F-8 データ更新バッチ(要件§10.2)。
+# 週次(月曜05:00 JST)と手動実行。GTFS取得 → 診断 → R2 → D1(版切替)。
+#
+# 公開値が前回と変わると、バッチは is_current を切り替えずに失敗する(変化ガード)。
+# 内容を確認したうえで、手動実行の allow_changes にチェックを入れて通すこと。
+name: batch
+
+on:
+  schedule:
+    # 日曜20:00 UTC = 月曜05:00 JST
+    - cron: "0 20 * * 0"
+  workflow_dispatch:
+    inputs:
+      allow_changes:
+        description: "公開値の変化を承認して公開する"
+        type: boolean
+        default: false
+      force:
+        description: "フィードが更新されていなくても再計算する"
+        type: boolean
+        default: false
+
+# 再生成したデータを main に戻すためのもの(要件§6.2のバンドルはR2、履歴はgit)
+permissions:
+  contents: write
+
+concurrency:
+  group: batch
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # F-8-2 標高タイルキャッシュ。実行のたびに新しいキーで保存し、直近のものを復元する
+      - name: 標高タイルキャッシュ
+        uses: actions/cache@v4
+        with:
+          path: batch/.cache/dem
+          key: dem-tiles-v1-${{ github.run_id }}
+          restore-keys: dem-tiles-v1-
+
+      # 診断エンジンが壊れたまま公開しない
+      - name: ゴールデンテスト
+        run: pnpm test
+
+      - name: バッチ実行
+        id: batch
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -o pipefail
+          pnpm batch -- --remote \
+            ${{ inputs.allow_changes && '--allow-changes' || '' }} \
+            ${{ inputs.force && '--force' || '' }} | tee batch.log
+          version=$(sed -n 's/^::version=//p' batch.log | tail -1)
+          echo "version=${version:-unknown}" >> "$GITHUB_OUTPUT"
+
+      # ビルドはローカルD1/R2のシードを data/bundle/ から作る。
+      # ここを戻しておかないと、次のデプロイがプリレンダリングする46ページだけ古くなる
+      - name: 再生成したデータをコミット
+        run: |
+          git config user.name "regen-batch"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/gtfs_zips data/bundle
+          if git diff --cached --quiet; then
+            echo "データに変化なし。コミットしません"
+          else
+            git commit -m "chore(data): refresh diagnosis bundle (${{ steps.batch.outputs.version }})"
+            git push
+          fi

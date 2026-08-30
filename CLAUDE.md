@@ -30,11 +30,12 @@
 pnpm install         # 依存インストール(ルートで)
 pnpm dev             # apps/web を next dev で起動
 pnpm test            # 診断エンジンのゴールデンテスト
-pnpm batch           # 診断バンドル生成(要: data/gtfs/ 展開済み)
+pnpm batch           # F-8バッチ: GTFS取得→診断→R2/D1(ローカル)。更新が無ければ即終了
+pnpm batch -- --remote          # 本番のD1/R2へ公開
+pnpm batch -- --allow-changes   # 公開値の変化を承認して公開(既定は変化を見つけたら止まる)
+pnpm batch -- --skip-fetch --no-publish   # 取得も書き込みもせず成果物だけ再生成(オフライン確認)
 pnpm --filter @regen/db generate                   # スキーマ差分からマイグレーション生成
 pnpm --filter web exec wrangler d1 migrations apply regen-db --local   # ローカルD1へ適用(--remoteで本番)
-pnpm --filter @regen/batch seed-agencies           # GTFS → data/seed/agencies.json, feeds.json
-pnpm --filter @regen/batch seed-cloud              # D1/R2へ投入(-- --remote で本番)
 pnpm --filter web preview   # Workers環境でのローカル確認(OpenNext)
 pnpm --filter web deploy    # Cloudflare Workersへデプロイ
 ```
@@ -152,14 +153,16 @@ resample(25m) → fillNulls → smooth(175m) →
 
 ## 現状(2026-08-30)
 
-- 完了: 診断エンジンTS移植 + ゴールデンテスト(60件通過)、DBスキーマ、バッチv0、
-  企画書v0.2 / 要件定義v1.0 / DESIGN.md v1.0、**チケット00〜07**
+- 完了: 診断エンジンTS移植 + ゴールデンテスト(86件通過)、DBスキーマ、
+  企画書v0.2 / 要件定義v1.0 / DESIGN.md v1.0、**チケット00〜08**
   (00トークン / 01共通UI / 02 F-1マップ / 03 F-5一覧 / 04 F-2診断書 / 05 F-3車両比較 /
-  06 D1・R2・API / 07 F-6シナリオ共有。詳細は各チケット参照)
+  06 D1・R2・API / 07 F-6シナリオ共有 / 08 F-8データ更新バッチ。詳細は各チケット参照)
 - **D1 `regen-db`(98dc019f-ee56-4e89-9ff5-4ad0062cf0dd)と R2 `regen-bundles` は作成・投入済み**
   (ローカル・本番とも)。要件§11-1〜3は完了。§11-4以降(GitHub Actionsのシークレット等)はチケット12
 - GitHub: https://github.com/hohoemi-rabo/regen (main直コミット・直push)
-- **次: チケット08(F-8 データ更新バッチ。GTFS取得→診断→R2/D1、GitHub Actions週次)。** 以降は docs/tickets/README.md 参照
+- **次: チケット09(F-4 実測補正 `/calibrate`)。** 以降は docs/tickets/README.md 参照
+- **`.github/workflows/batch.yml` は作成済みだが、シークレット未登録のためまだ動かない**
+  (`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` = 要件§11-4。ユーザー作業)
 - 各チケットの進捗はチケット内のステータス行とTodoチェックボックスが正(この節は概況のみ)
 - PC表示: 一覧(F-5)・比較(F-3)は最大幅1200px、診断書は900px(DESIGN §4.1)
 - 未確定事項は要件定義書§13(車両マスタの車種、TCOの項目など)
@@ -179,26 +182,35 @@ resample(25m) → fillNulls → smooth(175m) →
   `scenario.ts`(共有シナリオの保存形式・検証・ID生成)。
   画面側は `apps/web/app/routes/[id]/compare/_components/` に Slider / NumberField / TcoChart /
   VehicleColumn / ShareButton、`apps/web/app/s/[id]/_components/ScenarioSheet.tsx` が共有ページ
-- **データ生成**(`batch/`、生成物はコミット済み)。**出力先はすべて `data/bundle/`**
-  (06で `apps/web/data/` から移した。アプリはもうこれを直接読まない):
-  `seed-map`(→ map.geojson + routes_summary.json、id = `feed_route_id`)/
-  `seed-profiles`(→ profiles.json: 表示用標高・補正区間・夏冬kWh、profiles25.json: 25m解像度の補正後標高)/
-  `seed-schedule`(→ schedules.json: 代表運行日ダイヤ。要 `data/gtfs/` 展開)/
-  `seed-agencies`(→ data/seed/agencies.json + feeds.json。GTFSから事業者とフィード期限を抽出)/
-  `seed-cloud`(data/bundle/ と data/seed/ を **D1とR2へ投入**。`-- --remote` で本番)
+- **データ更新バッチ**(`batch/`、入口は `pnpm batch` の1本。生成物はコミット済み)。
+  **出力先はすべて `data/bundle/`**(アプリはこれを直接読まない。読むのはD1/R2):
+  `feeds.ts`(gtfs-data.jp API・zip取得・展開・版の算出・更新検出)/
+  `pipeline.ts`(GTFS+標高→`diagnose()`→ map.geojson / routes_summary.json / profiles.json /
+  profiles25.json / schedules.json / agencies.json / feeds.json)/
+  `verify.ts`(変化ガード)/ `publish.ts`(R2→D1→版切替、batch_runs)/ `cf.ts`(wrangler越しのD1・R2)
 - **路線ID**は `feed_route_id`(例 `Minamishinshuseibu1_13`)で全データ共通
 
-### チケット08(データ更新バッチ)の出発点
+### データ更新バッチの作法(チケット08で確定)
 
-- **投入経路はもうある。** `batch/src/seed-cloud.ts` が
-  `data/bundle/` + `data/seed/` → D1(agencies/feeds/routes/vehicles/bundles)と
-  R2(`bundles/<version>/`)へ冪等に書く。`--remote` で本番。08はここに
-  「GTFS取得・更新検出・タイルキャッシュ・batch_runs記録・Actions化」を足す形になる
-- **版の切替は `bundles.is_current` の付け替えだけ。** R2は版ごとにキーを分けており旧版を消さないので、
-  新版を全部書き終えてから `is_current` を移せば、実行中も旧版が壊れない(08の受入条件)
-- 版の文字列は現在 `apps/web/lib/site.ts` の `DATA_GENERATED_AT` から作っている。
-  バッチが版を発行するようになったら、この参照方向を逆にする(D1の `bundles` が正本)
-- `data/gtfs/` はgitignore。`seed-agencies` / `seed-schedule` は展開済みを前提にしている
+- **版は入力から導出する。** `<全フィードの公開日の最大 YYYYMMDD>-<sha256(feed_uid列 + 診断パラメータ)の先頭8桁>`
+  (例 `20260818-c2bb49ee`)。同一入力なら同一版になるので、再実行は版を積まず冪等な上書きになる。
+  **D1の `bundles` が版の正本**(`apps/web/lib/site.ts` は廃止。フッタもD1から読む)
+- **公開の順序を崩さない。** R2を全部書く(`meta.json` を最後に置いて完了印にする)→ D1の行を更新
+  (新版は `is_current=0`)→ **最後に `is_current` を付け替える**。どこで失敗しても、配信中の版は
+  必ず「R2に全部揃っている版」を指す。**旧版のR2キーは消さない**
+  (`/s/[id]` が `bundleVersion` を固定して読むため、消すと過去の共有URLの数字が動く)
+- **R2アップロードは直列。** 並列にするとローカル(miniflare)で各wranglerプロセスが同じSQLiteを掴んで
+  `SQLITE_BUSY` で落ちる(`next build` を `cpus: 1` にしているのと同じ理由)
+- **変化ガード。** 公開値が前回(`data/bundle/routes_summary.json`)と1つでも変わったら、
+  R2にもD1にも書かずに止まる。承認は `--allow-changes`。
+  `data/bundle/` は**公開に成功したあとに書く**ので、常に「いま配信されている内容」と一致する
+- **対象フィードの正本は `data/feeds.source.json`。** gtfs-data.jp の `feed_id` はハイフン入り
+  (`Minamishinshu-takagi-1`)、こちらのIDはハイフン無し(`Minamishinshutakagi1`)。
+  路線IDは `<feedId>_<route_id>` なので、**ここを機械変換に任せると共有URLが壊れる**。対応表は人が管理する
+- 標高タイルのキャッシュは `batch/.cache/dem/`(gitignore)。404も `.miss` で記録して取り直さない。
+  Actionsは `actions/cache` でこのディレクトリを持ち回す
+- **喬木村フィードは2026-12-15期限。** 差し替わると変化ガードで週次実行が落ちるので、
+  差分を見てから手動実行(`workflow_dispatch` の `allow_changes`)で通す
 
 ### 公開の書き込み口(チケット07で確定)
 
@@ -218,7 +230,8 @@ resample(25m) → fillNulls → smooth(175m) →
 - **必ず `getCloudflareContext({ async: true })` を使う。** 46路線を全件プリレンダリングしており、
   静的生成コンテキストでは同期版が throw する
 - **ビルドにはシード済みのローカルD1/R2が要る**(`.wrangler/state` はgitignore)。
-  クリーンクローンでは `seed-agencies` → `seed-cloud` を先に流す。
+  クリーンクローンでは `pnpm batch` を先に流す(ネットワークが無いときは
+  `pnpm batch -- --skip-fetch` でコミット済みzipから作れる)。
   ビルドワーカーを並列にすると同じSQLiteを掴んで `SQLITE_BUSY` で落ちるため
   `next.config.ts` で `cpus: 1 / workerThreads: false` に固定してある
 - **`generateStaticParams` のページはOpenNextでは incremental cache 経由で配信される。**
@@ -274,8 +287,12 @@ resample(25m) → fillNulls → smooth(175m) →
 - R2 `regen-bundles`: `bundles/<version>/routes.json`(マップ用GeoJSON)/
   `bundles/<version>/profile/<route_id>.json`(1路線の全て)/ `bundles/<version>/meta.json`。
   配信する版は D1 `bundles.is_current` だけで切り替える(旧版のキーは消さない)
-- `data/bundle/` — バッチ生成物(routes_summary / profiles / profiles25 / schedules / map.geojson)
-- `data/seed/agencies.json` `feeds.json` — GTFSから抽出した事業者・フィード(`seed-agencies`が生成)
-- `data/seed/map_data.json` — 46路線の診断結果+簡略ポリライン(F-1の初期データ)
-- `data/seed/dem_all_routes.json` + `routes_meta.json` — 生標高とメタ(再診断の入力)
-- GTFS原本は `data/gtfs_zips/`。フィード更新日に注意(喬木村は2026-12-15期限)
+- `data/bundle/` — **バッチの出力はすべてここ**(map.geojson / routes_summary / profiles /
+  profiles25 / schedules / agencies / feeds)。次回の変化ガードの基準でもあるので、
+  **公開に成功した内容と一致している**ことが前提
+- `data/feeds.source.json` — 診断対象フィードの正本(手で管理。gtfs-data.jp のIDとの対応表)
+- GTFS原本は `data/gtfs_zips/`(バッチが取得して更新)。展開先 `data/gtfs/` はgitignore。
+  フィード更新日に注意(喬木村は2026-12-15期限)
+- 標高タイルのキャッシュは `batch/.cache/dem/`(gitignore)
+- **`data/seed/` は08で廃止した。** Python時代の凍結成果物(map_data / dem_all_routes / routes_meta)は
+  パイプラインが再生成するので入力として不要になった
