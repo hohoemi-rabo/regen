@@ -31,6 +31,10 @@ pnpm install         # 依存インストール(ルートで)
 pnpm dev             # apps/web を next dev で起動
 pnpm test            # 診断エンジンのゴールデンテスト
 pnpm batch           # 診断バンドル生成(要: data/gtfs/ 展開済み)
+pnpm --filter @regen/db generate                   # スキーマ差分からマイグレーション生成
+pnpm --filter web exec wrangler d1 migrations apply regen-db --local   # ローカルD1へ適用(--remoteで本番)
+pnpm --filter @regen/batch seed-agencies           # GTFS → data/seed/agencies.json, feeds.json
+pnpm --filter @regen/batch seed-cloud              # D1/R2へ投入(-- --remote で本番)
 pnpm --filter web preview   # Workers環境でのローカル確認(OpenNext)
 pnpm --filter web deploy    # Cloudflare Workersへデプロイ
 ```
@@ -149,10 +153,13 @@ resample(25m) → fillNulls → smooth(175m) →
 ## 現状(2026-08-30)
 
 - 完了: 診断エンジンTS移植 + ゴールデンテスト(60件通過)、DBスキーマ、バッチv0、
-  企画書v0.2 / 要件定義v1.0 / DESIGN.md v1.0、**チケット00〜05**
-  (00トークン / 01共通UI / 02 F-1マップ / 03 F-5一覧 / 04 F-2診断書 / 05 F-3車両比較。詳細は各チケット参照)
+  企画書v0.2 / 要件定義v1.0 / DESIGN.md v1.0、**チケット00〜06**
+  (00トークン / 01共通UI / 02 F-1マップ / 03 F-5一覧 / 04 F-2診断書 / 05 F-3車両比較 /
+  06 D1・R2・API。詳細は各チケット参照)
+- **D1 `regen-db`(98dc019f-ee56-4e89-9ff5-4ad0062cf0dd)と R2 `regen-bundles` は作成・投入済み**
+  (ローカル・本番とも)。要件§11-1〜3は完了。§11-4以降(GitHub Actionsのシークレット等)はチケット12
 - GitHub: https://github.com/hohoemi-rabo/regen (main直コミット・直push)
-- **次: チケット06(D1/R2セットアップ + API。D1/R2の作成はユーザー作業)。** 以降は docs/tickets/README.md 参照
+- **次: チケット07(F-6 シナリオ共有 `/s/[id]`)。** 以降は docs/tickets/README.md 参照
 - 各チケットの進捗はチケット内のステータス行とTodoチェックボックスが正(この節は概況のみ)
 - PC表示: 一覧(F-5)・比較(F-3)は最大幅1200px、診断書は900px(DESIGN §4.1)
 - 未確定事項は要件定義書§13(車両マスタの車種、TCOの項目など)
@@ -175,6 +182,23 @@ resample(25m) → fillNulls → smooth(175m) →
   および data/profiles25.json: 25m解像度の補正後標高) / `seed-schedule`(→ data/schedules.json:
   代表運行日ダイヤ。要 `data/gtfs/` 展開)
 - **路線ID**は `feed_route_id`(例 `Minamishinshuseibu1_13`)で全データ共通
+
+### D1/R2の作法(チケット06で確定)
+
+- **D1/R2へのアクセスは `apps/web/lib/data.ts` に集約**(先頭に `import "server-only"`)。
+  ここ以外から `getCloudflareContext()` を呼ばない
+- **必ず `getCloudflareContext({ async: true })` を使う。** 46路線を全件プリレンダリングしており、
+  静的生成コンテキストでは同期版が throw する
+- **ビルドにはシード済みのローカルD1/R2が要る**(`.wrangler/state` はgitignore)。
+  クリーンクローンでは `seed-agencies` → `seed-cloud` を先に流す。
+  ビルドワーカーを並列にすると同じSQLiteを掴んで `SQLITE_BUSY` で落ちるため
+  `next.config.ts` で `cpus: 1 / workerThreads: false` に固定してある
+- **`generateStaticParams` のページはOpenNextでは incremental cache 経由で配信される。**
+  `open-next.config.ts` の `r2IncrementalCache` を外すとプリレンダリング済みでも404になる
+- **検証は `pnpm --filter web preview`(Workersランタイム)を使う。**
+  `scripts/preview.sh` は素の `next start` でバインディングが無く、`getCloudflareContext()` が throw する
+- 単位: D1の `max_grade` は**分数**(0.106)、`length_m` は**メートル**。
+  画面表示の%やkmへの変換はページ側で行う
 
 ### ブラウザ再計算に使うプロファイル(チケット05で確定)
 
@@ -203,6 +227,16 @@ resample(25m) → fillNulls → smooth(175m) →
 
 ## データ
 
+**D1とR2が正本**(チケット06以降)。`data/bundle/*` はバッチの生成物で、シードの入力に使う。
+画面もAPIもD1/R2から読む。`apps/web/data/` と `public/map_data.json` はもう無い。
+
+- D1: agencies / routes / vehicles / scenarios / batch_runs / feeds / **bundles** +
+  Better Auth(user/session/account/verification)。スキーマは `packages/db/src/schema.ts`
+- R2 `regen-bundles`: `bundles/<version>/routes.json`(マップ用GeoJSON)/
+  `bundles/<version>/profile/<route_id>.json`(1路線の全て)/ `bundles/<version>/meta.json`。
+  配信する版は D1 `bundles.is_current` だけで切り替える(旧版のキーは消さない)
+- `data/bundle/` — バッチ生成物(routes_summary / profiles / profiles25 / schedules / map.geojson)
+- `data/seed/agencies.json` `feeds.json` — GTFSから抽出した事業者・フィード(`seed-agencies`が生成)
 - `data/seed/map_data.json` — 46路線の診断結果+簡略ポリライン(F-1の初期データ)
 - `data/seed/dem_all_routes.json` + `routes_meta.json` — 生標高とメタ(再診断の入力)
 - `apps/web/data/routes_summary.json` — 一覧用サマリー(座標なし)
