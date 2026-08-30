@@ -72,7 +72,10 @@ body {
   color: var(--ink-3);
 }
 
-/* §10 印刷: 診断書をA4縦1枚に収める(補助金申請・社内説明に添付できること) */
+/* §10 印刷。
+   全ページ共通の体裁と、A4縦1枚に詰めるための圧縮を分ける。
+   圧縮は診断書(F-2)と共有シナリオ(F-6)だけの要件なので `.print-a4` を付けた画面にしか効かせない。
+   これを全ページに掛けると、/about のような読み物が本文8px・幅無制限で印刷されてしまう。 */
 @media print {
   @page {
     size: A4 portrait;
@@ -86,7 +89,6 @@ body {
 
   body {
     background: #ffffff;
-    font-size: 10px;
     /* 画面用の min-h-screen が残るとフッターが次ページへ押し出される */
     min-height: 0 !important;
     display: block !important;
@@ -114,24 +116,7 @@ body {
     display: none !important;
   }
 
-  /* 余白を詰めてA4縦1枚に収める */
-  main {
-    padding: 0 !important;
-    max-width: none !important;
-  }
-  /* セクション単位で改ページを避けると余白が大きく空くので、
-     切れて困る最小単位(タイル・表の行)だけを保護する */
-  section {
-    padding: 2px 6px !important;
-  }
-  /* セクションの説明文は行間を詰める(内容は残す) */
-  section > p {
-    line-height: 1.25 !important;
-    margin-top: 0 !important;
-  }
-  section > div {
-    margin-top: 3px !important;
-  }
+  /* 切れて困る最小単位(タイル・表の行)だけ改ページから守る */
   .grid > div,
   tr,
   section dl > div {
@@ -139,65 +124,6 @@ body {
   }
   h2 {
     break-after: avoid;
-  }
-  .space-y-card-gap > * + * {
-    margin-top: 3px !important;
-  }
-  .mt-card-gap {
-    margin-top: 3px !important;
-  }
-  .text-hero {
-    font-size: 20px !important;
-    line-height: 1.05 !important;
-  }
-  .text-tile {
-    font-size: 14px !important;
-  }
-  .text-section {
-    font-size: 11px !important;
-  }
-  .text-note,
-  .text-note-sm,
-  .text-aux,
-  .text-body {
-    font-size: 8px !important;
-    line-height: 1.35 !important;
-  }
-
-  /* 結論バッジも詰める */
-  .bg-surface-dark {
-    padding: 4px 8px !important;
-  }
-
-  /* グラフは残すが高さを抑える */
-  section svg {
-    max-height: 22mm;
-    width: auto !important;
-    margin: 0 auto;
-  }
-
-  /* 数値タイルは小さく詰め、列を増やして行数を減らす */
-  .grid {
-    gap: 3px !important;
-    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
-  }
-  .grid > div {
-    padding: 3px 5px !important;
-  }
-
-  /* 仮定リストは2段組にして高さを半分に */
-  section dl {
-    column-count: 2;
-    column-gap: 12px;
-  }
-  section dl > div {
-    break-inside: avoid;
-    padding: 1px 0 !important;
-  }
-
-  table td,
-  table th {
-    padding: 1px 4px !important;
   }
 
   /* グラフは残す(線は黒、面は薄いグレー) */
@@ -216,6 +142,87 @@ body {
   /* 判定チップ・棒グラフの塗りも白黒で潰れないよう、系列2は網ではなくグレーに */
   .bg-chart-series2 {
     background: #777777 !important;
+  }
+
+  /* --- ここからA4縦1枚に詰めるための圧縮(診断書・共有シナリオのみ) --- */
+  .print-a4 {
+    font-size: 10px;
+  }
+  .print-a4 main,
+  main.print-a4 {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  /* セクション単位で改ページを避けると余白が大きく空くので詰めるだけにする */
+  .print-a4 section {
+    padding: 2px 6px !important;
+  }
+  /* セクションの説明文は行間を詰める(内容は残す) */
+  .print-a4 section > p {
+    line-height: 1.25 !important;
+    margin-top: 0 !important;
+  }
+  .print-a4 section > div {
+    margin-top: 3px !important;
+  }
+  .print-a4 .space-y-card-gap > * + * {
+    margin-top: 3px !important;
+  }
+  .print-a4 .mt-card-gap {
+    margin-top: 3px !important;
+  }
+  .print-a4 .text-hero {
+    font-size: 20px !important;
+    line-height: 1.05 !important;
+  }
+  .print-a4 .text-tile {
+    font-size: 14px !important;
+  }
+  .print-a4 .text-section {
+    font-size: 11px !important;
+  }
+  .print-a4 .text-note,
+  .print-a4 .text-note-sm,
+  .print-a4 .text-aux,
+  .print-a4 .text-body {
+    font-size: 8px !important;
+    line-height: 1.35 !important;
+  }
+
+  /* 結論バッジも詰める */
+  .print-a4 .bg-surface-dark {
+    padding: 4px 8px !important;
+  }
+
+  /* グラフは残すが高さを抑える */
+  .print-a4 section svg {
+    max-height: 22mm;
+    width: auto !important;
+    margin: 0 auto;
+  }
+
+  /* 数値タイルは小さく詰め、列を増やして行数を減らす */
+  .print-a4 .grid {
+    gap: 3px !important;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  }
+  .print-a4 .grid > div {
+    padding: 3px 5px !important;
+  }
+
+  /* 仮定リストは2段組にして高さを半分に */
+  .print-a4 section dl {
+    column-count: 2;
+    column-gap: 12px;
+  }
+  .print-a4 section dl > div {
+    break-inside: avoid;
+    padding: 1px 0 !important;
+  }
+
+  .print-a4 table td,
+  .print-a4 table th {
+    padding: 1px 4px !important;
   }
 }
 

@@ -166,8 +166,10 @@ export function ScenarioSheet({
     year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
   });
 
+  // print-a4 は「A4縦1枚に詰める印刷CSS(globals.css §10)を効かせる」印。
+  // 診断書と共有シナリオだけに付ける — 読み物ページに掛かると本文が8pxになる
   return (
-    <main className="mx-auto w-full max-w-[900px] px-4 py-8">
+    <main className="print-a4 mx-auto w-full max-w-[900px] px-4 py-8">
       <nav className="mb-4 text-note text-ink-3 print:hidden">
         <Link href="/routes" className="text-accent hover:text-accent-strong">路線一覧</Link>
         <span className="mx-1">/</span>

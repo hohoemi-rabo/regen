@@ -3,6 +3,9 @@
 路線バスのEV化適性を、公共交通オープンデータ(GTFS)と国土地理院の標高データだけで診断する
 意思決定支援サービス。公共交通オープンデータチャレンジ2026 応募作品。
 
+- 公開サイト: https://regen.rabo-hohoemi.workers.dev
+- **手法・仮定・出典・限界の説明: https://regen.rabo-hohoemi.workers.dev/about**
+  (どのデータをどう計算し、どこまで信用してよいかを1ページにまとめてある)
 - 企画書: `docs/企画書_v0.2.md`
 - 要件定義: `docs/REQUIREMENTS_v1.0.md`
 - 動くプロトタイプ(検証時のもの): `docs/prototype/` をブラウザで開く
@@ -40,6 +43,7 @@ batch/           データ更新バッチ(GTFS取得→標高→診断→R2/D1)
 data/gtfs_zips/  南信州11フィードのGTFS原本(バッチが取得して更新)
 data/bundle/     バッチの生成物(46路線の診断結果・プロファイル・ダイヤ)
 docs/            企画書・要件定義・検証プロトタイプ・サンプルCSV
+apps/web/public/about/  /about に載せる図版(46路線マップのSVG・画面写真)
 ```
 
 ## バッチを動かす

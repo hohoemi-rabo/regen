@@ -51,6 +51,8 @@ const config: Config = {
         "page-title": ["22px", { lineHeight: "1.35", fontWeight: "600" }],
         section: ["15px", { lineHeight: "1.5", fontWeight: "600" }],
         body: ["14px", { lineHeight: "1.7" }],
+        // 読み物用(DESIGN §3.2 / §6.6)。/about のような長文だけに使う
+        prose: ["14px", { lineHeight: "1.85" }],
         aux: ["13px", { lineHeight: "1.6" }],
         note: ["12px", { lineHeight: "1.5" }],
         "note-sm": ["11px", { lineHeight: "1.5" }],

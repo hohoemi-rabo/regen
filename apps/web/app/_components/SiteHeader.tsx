@@ -14,7 +14,9 @@ export function SiteHeader() {
           <Link href="/calibrate" className="text-ink-2 transition-colors duration-fast hover:text-accent">
             じぶん補正
           </Link>
-          {/* /about はチケット11で作る。実体ができるまでリンクを出さない(404を踏ませない) */}
+          <Link href="/about" className="text-ink-2 transition-colors duration-fast hover:text-accent">
+            このサービスについて
+          </Link>
         </nav>
       </div>
     </header>

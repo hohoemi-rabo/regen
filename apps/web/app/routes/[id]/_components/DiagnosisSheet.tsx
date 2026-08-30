@@ -81,8 +81,10 @@ export function DiagnosisSheet({
       ? `${schedule.repDayLabel}ダイヤ${schedule.repTrips}便は、朝の満充電だけで走り切れます`
       : `${schedule.repDayLabel}ダイヤ${schedule.repTrips}便を走らせるには、日中${plan.stops.length}回の充電が必要です`;
 
+  // print-a4 は「A4縦1枚に詰める印刷CSS(globals.css §10)を効かせる」印。
+  // 診断書と共有シナリオだけに付ける — 読み物ページに掛かると本文が8pxになる
   return (
-    <main className="mx-auto w-full max-w-[900px] px-4 py-8">
+    <main className="print-a4 mx-auto w-full max-w-[900px] px-4 py-8">
       <nav className="mb-4 text-note text-ink-3 print:hidden">
         <Link href="/routes" className="text-accent hover:text-accent-strong">
           路線一覧

@@ -154,15 +154,16 @@ resample(25m) → fillNulls → smooth(175m) →
 ## 現状(2026-08-30)
 
 - 完了: 診断エンジンTS移植 + テスト(core 123件 / web 17件)、DBスキーマ、
-  企画書v0.2 / 要件定義v1.0 / DESIGN.md v1.0、**チケット00〜10**
+  企画書v0.2 / 要件定義v1.0 / DESIGN.md v1.0、**チケット00〜11**
   (00トークン / 01共通UI / 02 F-1マップ / 03 F-5一覧 / 04 F-2診断書 / 05 F-3車両比較 /
   06 D1・R2・API / 07 F-6シナリオ共有 / 08 F-8データ更新バッチ / 09 F-4じぶん補正 /
-  10 F-7管理画面。詳細は各チケット参照)
+  10 F-7管理画面 / 11 `/about`。詳細は各チケット参照)
 - **D1 `regen-db`(98dc019f-ee56-4e89-9ff5-4ad0062cf0dd)と R2 `regen-bundles` は作成・投入済み**
   (ローカル・本番とも)。要件§11-1〜3は完了。§11-4以降(GitHub Actionsのシークレット等)はチケット12
 - GitHub: https://github.com/hohoemi-rabo/regen (main直コミット・直push)
-- **次: チケット11(`/about` マニュアル兼)。** 以降は docs/tickets/README.md 参照
-- **本番D1/R2は新版 `20260818-c2bb49ee` に切替済み**(2026-08-30、GitHub Actionsの手動実行で公開)。
+- **次: チケット12(CI/デプロイ自動化・応募物一式)。** 詳細は docs/tickets/README.md 参照
+- **本番D1/R2は新版 `20260818-35b1f7e1` に切替済み**(2026-08-30、GitHub Actionsの手動実行で公開)。
+  判定しきい値が `paramsSnapshot()` に入った(チケット10)ので、版が `c2bb49ee` から変わっている。
   要件§11-4のシークレットも登録済みで、週次(月曜05:00 JST)の自動実行が生きている。
   **ワークフローは Node 22。** pnpm 11 が Node 22.13以上を要求する(Node 20では setup で落ちる)
 - 各チケットの進捗はチケット内のステータス行とTodoチェックボックスが正(この節は概況のみ)
@@ -190,6 +191,8 @@ resample(25m) → fillNulls → smooth(175m) →
   `pipeline.ts`(GTFS+標高→`diagnose()`→ map.geojson / routes_summary.json / profiles.json /
   profiles25.json / schedules.json / agencies.json / feeds.json)/
   `verify.ts`(変化ガード)/ `publish.ts`(R2→D1→版切替、batch_runs)/ `cf.ts`(wrangler越しのD1・R2)
+- **読み物ページ(画面#7 `/about`)** `apps/web/app/about/`(`page.tsx` / `_components/PipelineDiagram.tsx`
+  = 処理の流れの自前SVG / `_components/Figure.tsx` = 図のわく)。図版は `public/about/`
 - **じぶん補正(F-4)** `packages/core/calibration.ts`(当てはめと適用)/
   `apps/web/lib/calibrated.ts`(路線1件への適用)/
   `apps/web/app/_components/calibration/`(localStorageの保管庫と「適用中」の帯)/
@@ -257,6 +260,23 @@ resample(25m) → fillNulls → smooth(175m) →
   **しきい値は `paramsSnapshot()` にも入っている** — 入れないと変えても版が変わらず、
   更新検出の早期リターンで再計算されない。変更後の初回バッチは変化ガードで止まる(設計どおり)
 - **車両マスタの種は `ON CONFLICT DO NOTHING`。** 管理画面の編集を週次バッチが上書きしないため
+
+### 読み物ページ `/about` の作法(チケット11で確定)
+
+- **印刷CSSは `.print-a4` を付けた画面にだけ効かせる。** `globals.css` の `@media print` は
+  全ページ共通の体裁(用紙・白地・ナビと地図を隠す・グラフの白黒化)と、
+  **A4縦1枚に詰めるための圧縮**を分けてある。圧縮は診断書(F-2)と共有シナリオ(F-6)だけの
+  要件なので `.print-a4` の下に置き、`DiagnosisSheet` / `ScenarioSheet` の `<main>` に付けている。
+  **全ページに掛けると `/about` が本文8px・幅無制限で刷られる**
+- **`/about` に数字を書き写さない。** 路線数・判定内訳・精度ランクの数・補正した路線数と距離・
+  版・生成日は**D1**、車両諸元や `STEP` / `SMOOTH_W` / `MAX_GRADE` / 空調 / 単価 / CO2係数は
+  **`@regen/core`**、判定しきい値は **`getThresholds()`**(管理画面で変わるので
+  `DEFAULT_THRESHOLDS` を書かない)から出す。要件§5.5(算出根拠を画面で確認できること)が
+  バッチ更新のたびに嘘にならないようにするため
+- **46路線マップは `public/about/map.svg`(ベクタ)。** プロトタイプHTMLの中身が
+  純粋なインラインSVGだったので書き出した。**MapLibreの描画はヘッドレスで撮れない**ので、
+  地図の図版を自動で用意できるのはこの経路だけ。画面写真(`sheet` / `compare` / `calibrate`)は
+  本番から撮って `public/about/` に置き、`Figure` で `print:hidden` にする
 
 ### 公開の書き込み口(チケット07で確定)
 
