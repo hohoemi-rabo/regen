@@ -34,8 +34,12 @@ export default async function AdminDashboard() {
     .map((f) => ({ f, days: daysUntil(f.feedEnd) }))
     .filter((x) => x.days !== null && x.days <= FEED_EXPIRY_WARN_DAYS)
     .sort((a, b) => (a.days ?? 0) - (b.days ?? 0));
-  const lastFailed = runs.find((r) => r.status === "failed");
   const lastSuccess = runs.find((r) => r.status === "success");
+  // **最新の実行が失敗しているときだけ警告する。** 過去の失敗をそのまま拾うと、
+  // あとで成功しても警告が消えず、解決済みの赤信号が永久に残る。
+  // 過去の失敗は下の実行履歴で追える
+  const latest = runs[0];
+  const needsAttention = latest && latest.status !== "success" ? latest : null;
 
   const runColumns: Column<Run>[] = [
     { key: "id", header: "#", align: "right", render: (r) => r.id },
@@ -62,7 +66,7 @@ export default async function AdminDashboard() {
 
   return (
     <>
-      {(expiring.length > 0 || lastFailed) && (
+      {(expiring.length > 0 || needsAttention) && (
         <section className="rounded-card border border-line bg-surface p-5">
           <h2 className="text-section text-verdict-cond-text">確認が要ること</h2>
           {/* バッチの失敗メッセージには長いパスが入りうる。折り返さないと375pxで溢れる */}
@@ -73,10 +77,19 @@ export default async function AdminDashboard() {
                 ({f.feedEnd})で期限切れです。差し替わるとバッチは変化ガードで止まります。
               </li>
             ))}
-            {lastFailed && (
+            {needsAttention && (
               <li>
-                直近の失敗: #{lastFailed.id}({jst(lastFailed.startedAt)})—{" "}
-                {firstLine(lastFailed.message, 120)}
+                {needsAttention.status === "running" ? (
+                  <>
+                    実行中のまま止まっている可能性があります: #{needsAttention.id}(
+                    {jst(needsAttention.startedAt)}開始)
+                  </>
+                ) : (
+                  <>
+                    <strong>最新のバッチが失敗しています</strong>: #{needsAttention.id}(
+                    {jst(needsAttention.startedAt)})— {firstLine(needsAttention.message, 120)}
+                  </>
+                )}
               </li>
             )}
           </ul>
