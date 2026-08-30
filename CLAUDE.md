@@ -161,8 +161,9 @@ resample(25m) → fillNulls → smooth(175m) →
   (ローカル・本番とも)。要件§11-1〜3は完了。§11-4以降(GitHub Actionsのシークレット等)はチケット12
 - GitHub: https://github.com/hohoemi-rabo/regen (main直コミット・直push)
 - **次: チケット09(F-4 実測補正 `/calibrate`)。** 以降は docs/tickets/README.md 参照
-- **`.github/workflows/batch.yml` は作成済みだが、シークレット未登録のためまだ動かない**
-  (`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` = 要件§11-4。ユーザー作業)
+- **本番D1/R2は新版 `20260818-c2bb49ee` に切替済み**(2026-08-30、GitHub Actionsの手動実行で公開)。
+  要件§11-4のシークレットも登録済みで、週次(月曜05:00 JST)の自動実行が生きている。
+  **ワークフローは Node 22。** pnpm 11 が Node 22.13以上を要求する(Node 20では setup で落ちる)
 - 各チケットの進捗はチケット内のステータス行とTodoチェックボックスが正(この節は概況のみ)
 - PC表示: 一覧(F-5)・比較(F-3)は最大幅1200px、診断書は900px(DESIGN §4.1)
 - 未確定事項は要件定義書§13(車両マスタの車種、TCOの項目など)
